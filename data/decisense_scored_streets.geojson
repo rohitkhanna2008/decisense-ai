@@ -1,0 +1,421 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_01",
+        "street_name": "Bangalore National Highway (NH48) Expressway - RIT Flyover Stretch",
+        "zone_type": "commercial",
+        "L_eq_db": 69.6,
+        "L_max_db": 75.3,
+        "dominant_noise_source": "vehicular_honking",
+        "sleep_disruption_score": 38,
+        "risk_category": "Low / Undisturbed Sleep",
+        "color_code": "#00e676",
+        "is_violation": true,
+        "statutory_limit_db": 55.0,
+        "delta_db": 14.6
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.01,
+            13.0495
+          ],
+          [
+            80.018,
+            13.0505
+          ],
+          [
+            80.026,
+            13.0515
+          ],
+          [
+            80.036,
+            13.0525
+          ],
+          [
+            80.045,
+            13.0535
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_02",
+        "street_name": "RIT College Main Campus Approach Road",
+        "zone_type": "silence",
+        "L_eq_db": 49.6,
+        "L_max_db": 52.8,
+        "dominant_noise_source": "ambient_baseline",
+        "sleep_disruption_score": 25,
+        "risk_category": "Low / Undisturbed Sleep",
+        "color_code": "#00e676",
+        "is_violation": true,
+        "statutory_limit_db": 40.0,
+        "delta_db": 9.6
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.023,
+            13.0465
+          ],
+          [
+            80.0245,
+            13.0475
+          ],
+          [
+            80.026,
+            13.0485
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_03",
+        "street_name": "Saveetha Medical College Entrance Arterial",
+        "zone_type": "silence",
+        "L_eq_db": 73.0,
+        "L_max_db": 82.2,
+        "dominant_noise_source": "ambient_baseline",
+        "sleep_disruption_score": 86,
+        "risk_category": "Critical (High Sleep Awakenings)",
+        "color_code": "#ff3366",
+        "is_violation": true,
+        "statutory_limit_db": 40.0,
+        "delta_db": 33.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.0135,
+            13.0435
+          ],
+          [
+            80.015,
+            13.0448
+          ],
+          [
+            80.0165,
+            13.046
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_04",
+        "street_name": "Kuthambakkam Mofussil Bus Terminus Access Corridor",
+        "zone_type": "commercial",
+        "L_eq_db": 73.2,
+        "L_max_db": 79.2,
+        "dominant_noise_source": "continuous_traffic",
+        "sleep_disruption_score": 47,
+        "risk_category": "Moderate (Sleep Fragmentation)",
+        "color_code": "#ffd600",
+        "is_violation": true,
+        "statutory_limit_db": 55.0,
+        "delta_db": 18.2
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.0075,
+            13.0395
+          ],
+          [
+            80.009,
+            13.041
+          ],
+          [
+            80.0115,
+            13.0425
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_05",
+        "street_name": "Nemam Lake Road Residential Corridor",
+        "zone_type": "residential",
+        "L_eq_db": 48.3,
+        "L_max_db": 53.0,
+        "dominant_noise_source": "ambient_baseline",
+        "sleep_disruption_score": 9,
+        "risk_category": "Low / Undisturbed Sleep",
+        "color_code": "#00e676",
+        "is_violation": true,
+        "statutory_limit_db": 45.0,
+        "delta_db": 3.3
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.018,
+            13.0535
+          ],
+          [
+            80.0205,
+            13.0555
+          ],
+          [
+            80.023,
+            13.0575
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_06",
+        "street_name": "Poonamallee Trunk Road - Metro Phase 2 Elevated Corridor",
+        "zone_type": "commercial",
+        "L_eq_db": 74.0,
+        "L_max_db": 81.1,
+        "dominant_noise_source": "construction_piling",
+        "sleep_disruption_score": 49,
+        "risk_category": "Moderate (Sleep Fragmentation)",
+        "color_code": "#ffd600",
+        "is_violation": true,
+        "statutory_limit_db": 55.0,
+        "delta_db": 19.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.033,
+            13.048
+          ],
+          [
+            80.038,
+            13.049
+          ],
+          [
+            80.044,
+            13.05
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_07",
+        "street_name": "Panimalar Hospital Silence Buffer Service Lane",
+        "zone_type": "silence",
+        "L_eq_db": 68.2,
+        "L_max_db": 73.5,
+        "dominant_noise_source": "construction_piling",
+        "sleep_disruption_score": 73,
+        "risk_category": "Critical (High Sleep Awakenings)",
+        "color_code": "#ff3366",
+        "is_violation": true,
+        "statutory_limit_db": 40.0,
+        "delta_db": 28.2
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.0365,
+            13.0508
+          ],
+          [
+            80.038,
+            13.0518
+          ],
+          [
+            80.0395,
+            13.0528
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_08",
+        "street_name": "Porur - Kundrathur Link Road",
+        "zone_type": "commercial",
+        "L_eq_db": 74.8,
+        "L_max_db": 80.1,
+        "dominant_noise_source": "continuous_traffic",
+        "sleep_disruption_score": 51,
+        "risk_category": "Moderate (Sleep Fragmentation)",
+        "color_code": "#ffd600",
+        "is_violation": true,
+        "statutory_limit_db": 55.0,
+        "delta_db": 19.8
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.048,
+            13.031
+          ],
+          [
+            80.051,
+            13.0335
+          ],
+          [
+            80.054,
+            13.036
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_09",
+        "street_name": "Kuthambakkam Village Gramani Residential Street",
+        "zone_type": "residential",
+        "L_eq_db": 39.4,
+        "L_max_db": 42.3,
+        "dominant_noise_source": "ambient_baseline",
+        "sleep_disruption_score": 0,
+        "risk_category": "Low / Undisturbed Sleep",
+        "color_code": "#00e676",
+        "is_violation": false,
+        "statutory_limit_db": 45.0,
+        "delta_db": -5.6
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.0105,
+            13.0365
+          ],
+          [
+            80.0125,
+            13.038
+          ],
+          [
+            80.0145,
+            13.0395
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_10",
+        "street_name": "Sastha College Academic Approach",
+        "zone_type": "silence",
+        "L_eq_db": 69.7,
+        "L_max_db": 76.6,
+        "dominant_noise_source": "continuous_traffic",
+        "sleep_disruption_score": 77,
+        "risk_category": "Critical (High Sleep Awakenings)",
+        "color_code": "#ff3366",
+        "is_violation": true,
+        "statutory_limit_db": 40.0,
+        "delta_db": 29.7
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.03,
+            13.0475
+          ],
+          [
+            80.0315,
+            13.0485
+          ],
+          [
+            80.033,
+            13.0495
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_11",
+        "street_name": "Poonamallee Bypass Residential Enclave",
+        "zone_type": "residential",
+        "L_eq_db": 71.7,
+        "L_max_db": 80.5,
+        "dominant_noise_source": "vehicular_honking",
+        "sleep_disruption_score": 69,
+        "risk_category": "Critical (High Sleep Awakenings)",
+        "color_code": "#ff3366",
+        "is_violation": true,
+        "statutory_limit_db": 45.0,
+        "delta_db": 26.7
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.041,
+            13.045
+          ],
+          [
+            80.0435,
+            13.0465
+          ],
+          [
+            80.046,
+            13.048
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "street_id": "CHN_ST_12",
+        "street_name": "Chettipedu Industrial Link Highway",
+        "zone_type": "commercial",
+        "L_eq_db": 74.0,
+        "L_max_db": 84.5,
+        "dominant_noise_source": "vehicular_honking",
+        "sleep_disruption_score": 50,
+        "risk_category": "Moderate (Sleep Fragmentation)",
+        "color_code": "#ffd600",
+        "is_violation": true,
+        "statutory_limit_db": 55.0,
+        "delta_db": 19.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            80.027,
+            13.058
+          ],
+          [
+            80.03,
+            13.06
+          ],
+          [
+            80.033,
+            13.062
+          ]
+        ]
+      }
+    }
+  ]
+}

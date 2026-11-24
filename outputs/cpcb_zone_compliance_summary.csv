@@ -1,0 +1,7 @@
+zone_type,time_window,sample_count,cpcb_limit_db,mean_l_eq_db,peak_l_max_db,mean_sleep_score,cpcb_violation_rate_pct
+Silence,Day,26,50.0,62.4,90.9,32.6,69.2%
+Silence,Night,18,40.0,47.9,94.9,21.7,66.7%
+Residential,Day,17,55.0,62.9,93.8,27.5,64.7%
+Residential,Night,18,45.0,54.4,90.8,32.8,38.9%
+Commercial,Day,41,65.0,74.4,94.6,20.8,97.6%
+Commercial,Night,30,55.0,74.2,96.0,52.1,96.7%

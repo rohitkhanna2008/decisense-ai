@@ -1,0 +1,8 @@
+{
+  "OnePlus 11R (Test)": {
+    "device_model": "OnePlus 11R (Test)",
+    "reference_db": 74.0,
+    "raw_measured_db": -18.5,
+    "offset_db": 92.5
+  }
+}

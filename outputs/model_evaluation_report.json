@@ -1,0 +1,55 @@
+{
+  "project": "DeciSense AI: Hyper-Local Acoustic Pollution & Sleep-Disruption Mapper",
+  "milestone": "FRESHATHON 3.0 (1st Review) & IEEE Paper Benchmark",
+  "timestamp": "2026-11-24 19:07:11",
+  "dataset_sample_count": 150,
+  "validation_strategy": "Stratified 5-Fold Cross-Validation (k=5)",
+  "inference_latency_ms_per_clip": 21.2,
+  "primary_deep_classifier": {
+    "model_type": "Deep Acoustic Classifier (Log-Mel/MFCC Dense Neural Architecture)",
+    "accuracy": 0.96,
+    "macro_precision": 0.9548,
+    "macro_recall": 0.8909,
+    "macro_f1": 0.9009
+  },
+  "baseline_feature_classifier": {
+    "model_type": "Random Forest Baseline (n_estimators=100)",
+    "accuracy": 1.0,
+    "macro_precision": 1.0,
+    "macro_recall": 1.0,
+    "macro_f1": 1.0
+  },
+  "performance_gain_pct": -9.91,
+  "per_class_metrics": {
+    "vehicular_honking": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 42
+    },
+    "continuous_traffic": {
+      "precision": 0.917,
+      "recall": 1.0,
+      "f1_score": 0.957,
+      "support": 44
+    },
+    "construction_piling": {
+      "precision": 0.857,
+      "recall": 1.0,
+      "f1_score": 0.923,
+      "support": 12
+    },
+    "pa_loudspeaker": {
+      "precision": 1.0,
+      "recall": 0.455,
+      "f1_score": 0.625,
+      "support": 11
+    },
+    "ambient_baseline": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 41
+    }
+  }
+}

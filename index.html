@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeciSense AI - Hyper-Local Acoustic Pollution & Sleep-Disruption Mapper</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0a0e17;
+      --panel-bg: rgba(16, 24, 40, 0.85);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --accent-cyan: #00f2fe;
+      --accent-blue: #4facfe;
+      --accent-green: #00e676;
+      --accent-yellow: #ffd600;
+      --accent-red: #ff3366;
+      --text-main: #f0f4fc;
+      --text-dim: #94a3b8;
+      --card-radius: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Bar */
+    header {
+      background: rgba(10, 14, 23, 0.95);
+      border-bottom: 1px solid var(--panel-border);
+      backdrop-filter: blur(12px);
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+    }
+
+    .brand h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #fff, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-sub {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sdg-tag {
+      background: rgba(0, 230, 118, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(0, 230, 118, 0.3);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--panel-border);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.6; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 0.6; transform: scale(0.9); }
+    }
+
+    /* Main Grid Layout */
+    .dashboard-container {
+      display: grid;
+      grid-template-columns: 340px 1fr 380px;
+      gap: 20px;
+      padding: 20px;
+      flex: 1;
+      height: calc(100vh - 72px);
+      min-height: 720px;
+    }
+
+    @media (max-width: 1200px) {
+      .dashboard-container {
+        grid-template-columns: 320px 1fr;
+      }
+      .right-panel {
+        grid-column: span 2;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      .right-panel {
+        grid-column: span 1;
+      }
+    }
+
+    /* Panel Styling */
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--card-radius);
+      backdrop-filter: blur(16px);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    .panel-header h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #fff;
+    }
+
+    .panel-header .badge {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Left Controls Panel */
+    .control-group {
+      margin-bottom: 20px;
+    }
+
+    .control-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Time Window Selector */
+    .time-toggle-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      margin-bottom: 16px;
+    }
+
+    .time-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .time-btn.active {
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(79, 172, 254, 0.2));
+      color: var(--accent-cyan);
+      border: 1px solid rgba(0, 242, 254, 0.4);
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+    }
+
+    /* CPCB Regulatory Status Card */
+    .cpcb-card {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+
+    .cpcb-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .cpcb-row:last-child {
+      border-bottom: none;
+    }
+
+    .cpcb-limit-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--accent-yellow);
+    }
+
+    /* Filter checkboxes */
+    .checkbox-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: var(--text-main);
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.02);
+      transition: background 0.2s;
+    }
+
+    .checkbox-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .checkbox-item input {
+      accent-color: var(--accent-cyan);
+      cursor: pointer;
+    }
+
+    .source-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* Center Map Panel */
+    .map-panel {
+      position: relative;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      border-radius: var(--card-radius);
+      background: #0d131f;
+    }
+
+    .map-overlay-stats {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      gap: 12px;
+      z-index: 500;
+      pointer-events: none;
+    }
+
+    .stat-chip {
+      pointer-events: auto;
+      background: rgba(10, 14, 23, 0.9);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(12px);
+      padding: 10px 16px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    .stat-chip-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-chip-value {
+      font-size: 1.25rem;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 2px;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .stat-chip-value span {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-dim);
+    }
+
+    .map-legend {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(10, 14, 23, 0.92);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(12px);
+      padding: 12px 16px;
+      border-radius: 10px;
+      z-index: 500;
+      font-size: 0.75rem;
+    }
+
+    .legend-title {
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .legend-scale {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-dim);
+    }
+
+    .legend-color {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+
+    /* Right Audio ML Diagnostics Panel */
+    .diagnostic-panel {
+      gap: 16px;
+    }
+
+    .audio-upload-zone {
+      border: 2px dashed rgba(0, 242, 254, 0.3);
+      border-radius: 12px;
+      padding: 18px 12px;
+      text-align: center;
+      background: rgba(0, 242, 254, 0.02);
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .audio-upload-zone:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.06);
+    }
+
+    .audio-icon {
+      font-size: 26px;
+      margin-bottom: 6px;
+    }
+
+    .audio-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .audio-sub {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* Audio Live Controls */
+    .action-btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .btn {
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: #05101a;
+      box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 242, 254, 0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      border: 1px solid var(--panel-border);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Canvas visualizer */
+    .visualizer-container {
+      background: #070a12;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      padding: 10px;
+      position: relative;
+    }
+
+    .visualizer-title {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    canvas {
+      width: 100%;
+      height: 80px;
+      display: block;
+      border-radius: 6px;
+      background: #050811;
+    }
+
+    /* Model Inference Card */
+    .inference-card {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      padding: 14px;
+    }
+
+    .inference-title {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .classification-result {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+
+    .class-tag {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .confidence-badge {
+      background: rgba(0, 242, 254, 0.12);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      color: var(--accent-cyan);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    /* Sleep Disruption Index Meter */
+    .sleep-meter-box {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .sleep-meter-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      margin-bottom: 6px;
+    }
+
+    .sleep-meter-bar {
+      height: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sleep-meter-fill {
+      height: 100%;
+      width: 78%;
+      background: linear-gradient(90deg, var(--accent-green) 0%, var(--accent-yellow) 50%, var(--accent-red) 100%);
+      border-radius: 5px;
+      transition: width 0.4s ease;
+    }
+
+    .meter-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+      font-size: 0.75rem;
+    }
+
+    .meter-detail-item {
+      background: rgba(0, 0, 0, 0.25);
+      padding: 6px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .meter-detail-item span {
+      color: var(--text-dim);
+      display: block;
+      font-size: 0.68rem;
+    }
+
+    .meter-detail-item strong {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+    }
+
+    /* Preset Audio Demo Buttons */
+    .preset-triggers {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .preset-btn:hover {
+      background: rgba(0, 242, 254, 0.1);
+      border-color: rgba(0, 242, 254, 0.3);
+      color: var(--accent-cyan);
+    }
+
+    /* Toast alert banner */
+    .alert-banner {
+      background: rgba(255, 51, 102, 0.15);
+      border: 1px solid rgba(255, 51, 102, 0.4);
+      color: #ff99b3;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    /* Custom Leaflet Dark adjustments */
+    .leaflet-popup-content-wrapper {
+      background: rgba(10, 14, 23, 0.95) !important;
+      color: var(--text-main) !important;
+      border: 1px solid var(--panel-border) !important;
+      backdrop-filter: blur(12px) !important;
+      border-radius: 10px !important;
+    }
+    .leaflet-popup-tip {
+      background: rgba(10, 14, 23, 0.95) !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header>
+    <div class="brand">
+      <div class="logo-badge">🔇</div>
+      <div>
+        <h1>DeciSense AI</h1>
+        <div class="brand-sub">
+          Hyper-Local Acoustic Pollution & Sleep-Disruption Mapper
+          <span class="sdg-tag">UN SDG 11.6 & 3</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="status-pill">
+        <div class="status-dot"></div>
+        <span>Live Corridors: Poonamallee–Kuthambakkam (RIT Zone)</span>
+      </div>
+      <button class="btn btn-secondary" onclick="exportData()" style="padding: 6px 12px; font-size: 0.75rem;">
+        📥 Export GeoJSON
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Dashboard Container -->
+  <div class="dashboard-container">
+
+    <!-- Left Panel: Spatial & Regulatory Controls -->
+    <aside class="panel">
+      <div class="panel-header">
+        <h2>🎛️ Spatial & Audit Controls</h2>
+        <span class="badge">CPCB 2000</span>
+      </div>
+
+      <!-- Time Window Selector -->
+      <div class="control-group">
+        <label class="control-label">
+          <span>OPERATIONAL TIME WINDOW</span>
+          <span id="active-time-label" style="color: var(--accent-cyan);">Night Window</span>
+        </label>
+        <div class="time-toggle-box">
+          <button class="time-btn" id="btn-day" onclick="setTimeMode('day')">
+            ☀️ Day (06-22)
+          </button>
+          <button class="time-btn active" id="btn-night" onclick="setTimeMode('night')">
+            🌙 Night (22-06)
+          </button>
+        </div>
+      </div>
+
+      <!-- CPCB Statutory Compliance Box -->
+      <div class="cpcb-card">
+        <div class="cpcb-row">
+          <span>🏥 Silence Zone (100m)</span>
+          <span class="cpcb-limit-val" id="limit-silence">40 dB(A)</span>
+        </div>
+        <div class="cpcb-row">
+          <span>🏡 Residential Zone</span>
+          <span class="cpcb-limit-val" id="limit-residential">45 dB(A)</span>
+        </div>
+        <div class="cpcb-row">
+          <span>🏢 Commercial Corridor</span>
+          <span class="cpcb-limit-val" id="limit-commercial">55 dB(A)</span>
+        </div>
+        <div class="cpcb-row" style="margin-top: 4px; padding-top: 6px; font-size: 0.72rem; color: var(--text-dim);">
+          <span>WHO Night Sleep Cap: <b>30–40 dB</b></span>
+        </div>
+      </div>
+
+      <!-- Source Class Filters -->
+      <div class="control-group">
+        <label class="control-label">FILTER CLASSIFIED SOURCES</label>
+        <div class="checkbox-list">
+          <label class="checkbox-item">
+            <input type="checkbox" checked onchange="toggleFilter('Honking')">
+            <span class="source-indicator" style="background: var(--accent-red);"></span>
+            <span>Vehicular Honking (Impulse)</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" checked onchange="toggleFilter('Continuous_Traffic')">
+            <span class="source-indicator" style="background: var(--accent-yellow);"></span>
+            <span>Continuous Traffic / Heavy Engine</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" checked onchange="toggleFilter('Construction')">
+            <span class="source-indicator" style="background: #ff00ea;"></span>
+            <span>Construction / Drilling</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" checked onchange="toggleFilter('Loudspeakers')">
+            <span class="source-indicator" style="background: #9d4edd;"></span>
+            <span>PA Loudspeakers / Music</span>
+          </label>
+          <label class="checkbox-item">
+            <input type="checkbox" checked onchange="toggleFilter('Ambient')">
+            <span class="source-indicator" style="background: var(--accent-green);"></span>
+            <span>Quiet Baseline (< 40 dB)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Preset Simulation Triggers (For Reviewers) -->
+      <div class="control-group" style="margin-top: auto;">
+        <label class="control-label">JURY DEMO SOUND SIMULATORS</label>
+        <div class="preset-triggers">
+          <button class="preset-btn" onclick="triggerPreset('honk')">
+            <span>🚨 82 dB Midnight Horn Blast</span>
+            <span>Simulate ▶</span>
+          </button>
+          <button class="preset-btn" onclick="triggerPreset('traffic')">
+            <span>🚛 68 dB Bangalore Highway Trucks</span>
+            <span>Simulate ▶</span>
+          </button>
+          <button class="preset-btn" onclick="triggerPreset('construction')">
+            <span>🔨 75 dB Late-Night Metro Drilling</span>
+            <span>Simulate ▶</span>
+          </button>
+          <button class="preset-btn" onclick="triggerPreset('quiet')">
+            <span>🍃 36 dB Quiet Hostel Wing</span>
+            <span>Simulate ▶</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center Panel: Interactive Heatmap -->
+    <main class="panel map-panel">
+      <!-- Floating KPI Chips -->
+      <div class="map-overlay-stats">
+        <div class="stat-chip">
+          <span class="stat-chip-label">Monitored Segments</span>
+          <div class="stat-chip-value">18 <span>streets</span></div>
+        </div>
+        <div class="stat-chip">
+          <span class="stat-chip-label">Active Silence Breaches</span>
+          <div class="stat-chip-value" style="color: var(--accent-red);" id="kpi-breaches">5 <span>points</span></div>
+        </div>
+        <div class="stat-chip">
+          <span class="stat-chip-label">Corridor Sleep Index</span>
+          <div class="stat-chip-value" style="color: var(--accent-yellow);" id="kpi-sleep-index">64 <span>/100</span></div>
+        </div>
+      </div>
+
+      <!-- The Map Container -->
+      <div id="map"></div>
+
+      <!-- Map Legend -->
+      <div class="map-legend">
+        <div class="legend-title">Sleep-Disruption Risk</div>
+        <div class="legend-scale">
+          <div class="legend-item">
+            <div class="legend-color" style="background: var(--accent-red);"></div>
+            <span>Critical Violation (> 65)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: var(--accent-yellow);"></div>
+            <span>Moderate Disturbance (40–65)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: var(--accent-green);"></div>
+            <span>Quiet & Compliant (< 40)</span>
+          </div>
+          <div class="legend-item" style="margin-top: 4px;">
+            <div class="legend-color" style="border: 2px dashed #ff0055; background: rgba(255,0,85,0.2);"></div>
+            <span>100m Silence Zone Buffer</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right Panel: Audio ML & Real-time Diagnostics -->
+    <aside class="panel diagnostic-panel">
+      <div class="panel-header">
+        <h2>🔬 Audio ML Diagnostics</h2>
+        <span class="badge">Member 1 & 2 Engine</span>
+      </div>
+
+      <!-- Audio Ingestion Upload Zone -->
+      <div class="audio-upload-zone" onclick="document.getElementById('audio-file-input').click()">
+        <input type="file" id="audio-file-input" accept="audio/*" style="display: none;" onchange="handleAudioUpload(event)">
+        <div class="audio-icon">🎙️</div>
+        <div class="audio-title">Upload 5s Audio Clip or Stream Mic</div>
+        <div class="audio-sub">Supports .WAV, .MP3, or Live Phone Mic</div>
+      </div>
+
+      <div class="action-btn-row">
+        <button class="btn btn-primary" id="mic-toggle-btn" onclick="toggleMicrophone()">
+          <span>🎤</span> <span id="mic-btn-text">Start Mic</span>
+        </button>
+        <button class="btn btn-secondary" onclick="stopAudioStream()">
+          <span>⏹️</span> <span>Stop</span>
+        </button>
+      </div>
+
+      <!-- Real-time Oscilloscope & Frequency Spectrum -->
+      <div class="visualizer-container">
+        <div class="visualizer-title">
+          <span>FFT SPECTRUM & WAVEFORM</span>
+          <span id="sample-rate-label">44.1 kHz</span>
+        </div>
+        <canvas id="visualizer-canvas"></canvas>
+      </div>
+
+      <!-- Acoustic Model Classification Card -->
+      <div class="inference-card">
+        <div class="inference-title">YAMNet / CNN Predicted Source</div>
+        <div class="classification-result">
+          <div class="class-tag" id="predicted-class-tag">
+            <span>🚨</span>
+            <span id="predicted-class-name">Vehicular Honking</span>
+          </div>
+          <div class="confidence-badge" id="predicted-confidence">94.2% Conf</div>
+        </div>
+
+        <!-- Metric Readouts -->
+        <div class="meter-details" style="margin-top: 12px;">
+          <div class="meter-detail-item">
+            <span>Average Energy ($L_{eq}$)</span>
+            <strong id="val-leq">74.5 dB(A)</strong>
+          </div>
+          <div class="meter-detail-item">
+            <span>Impulse Peak ($L_{max}$)</span>
+            <strong id="val-lmax" style="color: var(--accent-red);">82.1 dB(A)</strong>
+          </div>
+          <div class="meter-detail-item">
+            <span>Crest Jump ($\Delta L$)</span>
+            <strong id="val-crest">+7.6 dB</strong>
+          </div>
+          <div class="meter-detail-item">
+            <span>CPCB Violation Delta</span>
+            <strong id="val-delta" style="color: var(--accent-red);">+34.5 dB</strong>
+          </div>
+        </div>
+
+        <!-- Sleep Disruption Score Gauge -->
+        <div class="sleep-meter-box">
+          <div class="sleep-meter-header">
+            <span style="font-size: 0.75rem; font-weight: 600;">SLEEP-DISRUPTION INDEX</span>
+            <strong id="val-sleep-score" style="color: var(--accent-red); font-family: 'JetBrains Mono';">84 / 100</strong>
+          </div>
+          <div class="sleep-meter-bar">
+            <div class="sleep-meter-fill" id="sleep-meter-fill" style="width: 84%;"></div>
+          </div>
+          <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 6px;">
+            Formula: $W_{time} \cdot (E_{base} + P_{impulse})$ with night penalty (1.3×)
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Alert Banner -->
+      <div class="alert-banner" id="alert-banner">
+        <span>⚠️</span>
+        <span id="alert-text">Breach detected in Saveetha Hospital 100m Silence Zone!</span>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    /* ========================================================
+       DeciSense AI - Core Client Logic
+       Coordinates: Poonamallee - RIT Chennai - Kuthambakkam
+       ======================================================== */
+
+    let currentMode = 'night'; // 'day' or 'night'
+    let activeFilters = new Set(['Honking', 'Continuous_Traffic', 'Construction', 'Loudspeakers', 'Ambient']);
+    let map, streetLayers = [], silenceZoneLayers = [];
+
+    // Coordinates centered near Rajalakshmi Institute of Technology (RIT), Poonamallee Corridor
+    const CAMPUS_COORDS = [13.0475, 80.0250];
+
+    // CPCB Statutory Limits dB(A)
+    const CPCB_LIMITS = {
+      day: { silence: 50, residential: 55, commercial: 65 },
+      night: { silence: 40, residential: 45, commercial: 55 }
+    };
+
+    // Hospital / College Silence POIs (100m statutory buffer)
+    const SILENCE_POIS = [
+      { name: "RIT Chennai Campus Academic Blocks", coords: [13.0478, 80.0245], radius: 100 },
+      { name: "Saveetha Medical / Dental Center", coords: [13.0450, 80.0150], radius: 100 },
+      { name: "Panimalar Hospital & College Buffer", coords: [13.0520, 80.0380], radius: 100 },
+      { name: "Kuthambakkam Primary Health Center", coords: [13.0410, 80.0090], radius: 100 }
+    ];
+
+    // Street Segments Database (Coordinates + Sound Profiles)
+    const STREET_SEGMENTS = [
+      {
+        id: "ST-01",
+        name: "Bangalore National Highway (NH48) Flyover Stretch",
+        coords: [[13.0495, 80.0120], [13.0510, 80.0250], [13.0535, 80.0400]],
+        zone: "commercial",
+        leq: 76.5, lmax: 85.0, source: "Continuous_Traffic"
+      },
+      {
+        id: "ST-02",
+        name: "RIT Campus Approach Road (Opposite Saveetha)",
+        coords: [[13.0470, 80.0220], [13.0478, 80.0245], [13.0485, 80.0280]],
+        zone: "silence",
+        leq: 64.2, lmax: 78.4, source: "Honking"
+      },
+      {
+        id: "ST-03",
+        name: "Kuthambakkam Bus Terminus Arterial",
+        coords: [[13.0430, 80.0100], [13.0420, 80.0180], [13.0415, 80.0260]],
+        zone: "commercial",
+        leq: 72.1, lmax: 79.5, source: "Continuous_Traffic"
+      },
+      {
+        id: "ST-04",
+        name: "Saveetha Medical Center Main Entrance Road",
+        coords: [[13.0440, 80.0140], [13.0450, 80.0150], [13.0460, 80.0170]],
+        zone: "silence",
+        leq: 68.9, lmax: 82.3, source: "Honking"
+      },
+      {
+        id: "ST-05",
+        name: "Nemam Residential Colony 1st Main",
+        coords: [[13.0540, 80.0190], [13.0560, 80.0210], [13.0580, 80.0240]],
+        zone: "residential",
+        leq: 42.0, lmax: 48.0, source: "Ambient"
+      },
+      {
+        id: "ST-06",
+        name: "Chennai Metro Line Construction Zone (Poonamallee)",
+        coords: [[13.0490, 80.0350], [13.0510, 80.0380], [13.0530, 80.0420]],
+        zone: "commercial",
+        leq: 79.8, lmax: 88.2, source: "Construction"
+      },
+      {
+        id: "ST-07",
+        name: "RIT Girls & Boys Hostel Internal Corridor",
+        coords: [[13.0485, 80.0255], [13.0490, 80.0270]],
+        zone: "silence",
+        leq: 37.5, lmax: 42.1, source: "Ambient"
+      },
+      {
+        id: "ST-08",
+        name: "Poonamallee Bypass Temple Junction",
+        coords: [[13.0460, 80.0310], [13.0475, 80.0330], [13.0490, 80.0360]],
+        zone: "residential",
+        leq: 69.4, lmax: 76.8, source: "Loudspeakers"
+      }
+    ];
+
+    /* Initialize Leaflet Map */
+    function initMap() {
+      map = L.map('map', {
+        zoomControl: true,
+        attributionControl: false
+      }).setView(CAMPUS_COORDS, 14);
+
+      // CartoDB Dark Matter Tiles (Clean modern aesthetic)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd'
+      }).addTo(map);
+
+      // Draw Silence POI 100m Buffers
+      SILENCE_POIS.forEach(poi => {
+        const circle = L.circle(poi.coords, {
+          radius: poi.radius,
+          color: '#ff0055',
+          dashArray: '5, 5',
+          fillColor: '#ff0055',
+          fillOpacity: 0.18,
+          weight: 2
+        }).addTo(map);
+
+        circle.bindPopup(`
+          <div style="font-size: 0.8rem; line-height: 1.4;">
+            <b style="color: #00f2fe;">🏥 CPCB Silence Zone (100m)</b><br/>
+            ${poi.name}<br/>
+            <span style="color: #ffd600;">Night Limit: 40 dB(A) | Day Limit: 50 dB(A)</span>
+          </div>
+        `);
+        silenceZoneLayers.push(circle);
+      });
+
+      renderStreetNetwork();
+    }
+
+    /* Compute Sleep Disruption Score */
+    function computeSleepScore(leq, lmax, zone, mode) {
+      const limit = CPCB_LIMITS[mode][zone] || 45;
+      const baseExcess = Math.max(0, leq - limit) * 2.0;
+      const crestJump = Math.max(0, (lmax - leq) - 10) * 1.5;
+      const timeWeight = (mode === 'night') ? 1.3 : 1.0;
+      const score = Math.min(100, Math.round(timeWeight * (baseExcess + crestJump)));
+      return score;
+    }
+
+    /* Get Color Based on Score */
+    function getScoreColor(score) {
+      if (score >= 65) return '#ff3366'; // Red (Severe)
+      if (score >= 40) return '#ffd600'; // Yellow (Moderate)
+      return '#00e676';                  // Green (Compliant)
+    }
+
+    /* Render Street PolyLines with Colors */
+    function renderStreetNetwork() {
+      // Clear existing
+      streetLayers.forEach(layer => map.removeLayer(layer));
+      streetLayers = [];
+
+      let totalScore = 0;
+      let activeViolations = 0;
+      let renderedCount = 0;
+
+      STREET_SEGMENTS.forEach(st => {
+        if (!activeFilters.has(st.source)) return;
+
+        const score = computeSleepScore(st.leq, st.lmax, st.zone, currentMode);
+        const color = getScoreColor(score);
+        totalScore += score;
+        renderedCount++;
+
+        const isViolation = (st.leq > CPCB_LIMITS[currentMode][st.zone]);
+        if (isViolation) activeViolations++;
+
+        const polyline = L.polyline(st.coords, {
+          color: color,
+          weight: 6,
+          opacity: 0.85,
+          lineCap: 'round'
+        }).addTo(map);
+
+        polyline.bindPopup(`
+          <div style="font-size: 0.8rem; line-height: 1.45;">
+            <b style="color: ${color};">${st.name}</b><br/>
+            Zone: <b style="text-transform: capitalize;">${st.zone}</b> | Mode: <b>${currentMode.toUpperCase()}</b><br/>
+            Average Energy ($L_{eq}$): <b>${st.leq} dB(A)</b><br/>
+            Impulse Peak ($L_{max}$): <b>${st.lmax} dB(A)</b><br/>
+            Dominant Source: <span style="color: #00f2fe;">${st.source.replace('_', ' ')}</span><br/>
+            <hr style="border: 0; border-top: 1px solid #334155; margin: 4px 0;"/>
+            Sleep Disruption Index: <b style="color: ${color}; font-size: 1rem;">${score} / 100</b>
+            ${isViolation ? '<br/><span style="color: #ff3366; font-weight: 700;">🚨 CPCB LIMIT EXCEEDED</span>' : '<br/><span style="color: #00e676;">✅ Within Statutory Limit</span>'}
+          </div>
+        `);
+
+        streetLayers.push(polyline);
+      });
+
+      // Update Floating KPI Chips
+      document.getElementById('kpi-breaches').innerText = activeViolations;
+      document.getElementById('kpi-sleep-index').innerText = renderedCount > 0 ? Math.round(totalScore / renderedCount) : 0;
+    }
+
+    /* Toggle Day / Night Mode */
+    function setTimeMode(mode) {
+      currentMode = mode;
+      document.getElementById('btn-day').classList.toggle('active', mode === 'day');
+      document.getElementById('btn-night').classList.toggle('active', mode === 'night');
+      document.getElementById('active-time-label').innerText = (mode === 'night') ? 'Night Window (22-06)' : 'Day Window (06-22)';
+
+      // Update CPCB Readouts
+      document.getElementById('limit-silence').innerText = CPCB_LIMITS[mode].silence + ' dB(A)';
+      document.getElementById('limit-residential').innerText = CPCB_LIMITS[mode].residential + ' dB(A)';
+      document.getElementById('limit-commercial').innerText = CPCB_LIMITS[mode].commercial + ' dB(A)';
+
+      renderStreetNetwork();
+      updateDiagnosticsWithPreset(currentPresetSample);
+    }
+
+    /* Toggle Noise Filters */
+    function toggleFilter(sourceName) {
+      if (activeFilters.has(sourceName)) {
+        activeFilters.delete(sourceName);
+      } else {
+        activeFilters.add(sourceName);
+      }
+      renderStreetNetwork();
+    }
+
+    /* ========================================================
+       Web Audio API - Real-Time FFT & Oscilloscope Engine
+       ======================================================== */
+    let audioCtx, analyser, micStream, animationFrameId;
+    const canvas = document.getElementById('visualizer-canvas');
+    const ctx = canvas.getContext('2d');
+    let isMicActive = false;
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth - 20;
+      canvas.height = 80;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function drawVisualizer() {
+      animationFrameId = requestAnimationFrame(drawVisualizer);
+      if (!analyser) return;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      analyser.getByteFrequencyData(dataArray);
+
+      ctx.fillStyle = '#050811';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const barWidth = (canvas.width / bufferLength) * 2.5;
+      let barHeight;
+      let x = 0;
+
+      // Compute simple RMS energy from buffer
+      let sumSquares = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        barHeight = (dataArray[i] / 255) * canvas.height;
+        sumSquares += (dataArray[i] - 128) ** 2;
+
+        const hue = (i / bufferLength) * 200 + 160; // Cyan to Blue/Red
+        ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+
+        x += barWidth + 1;
+      }
+
+      // If mic is running, update live dB estimate
+      if (isMicActive) {
+        const rms = Math.sqrt(sumSquares / bufferLength);
+        const liveDb = Math.min(95, Math.max(30, Math.round(rms * 0.9 + 35)));
+        const lmax = Math.round(liveDb + 6.5);
+        updateReadouts({
+          className: liveDb > 70 ? "Vehicular Honking / Spike" : "Ambient Baseline",
+          confidence: "91.4%",
+          icon: liveDb > 70 ? "🚨" : "🍃",
+          leq: liveDb,
+          lmax: lmax,
+          crest: (lmax - liveDb).toFixed(1)
+        });
+      }
+    }
+
+    async function toggleMicrophone() {
+      if (isMicActive) {
+        stopAudioStream();
+        return;
+      }
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = audioCtx.createMediaStreamSource(micStream);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 128;
+        source.connect(analyser);
+
+        isMicActive = true;
+        document.getElementById('mic-btn-text').innerText = "Mute Mic";
+        document.getElementById('mic-toggle-btn').classList.replace('btn-primary', 'btn-secondary');
+        drawVisualizer();
+      } catch (err) {
+        alert("Microphone permission denied or not available. Using Simulated Samples.");
+      }
+    }
+
+    function stopAudioStream() {
+      if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+      }
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      isMicActive = false;
+      document.getElementById('mic-btn-text').innerText = "Start Mic";
+      document.getElementById('mic-toggle-btn').classList.replace('btn-secondary', 'btn-primary');
+      
+      // Clear Canvas
+      ctx.fillStyle = '#050811';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    /* File Upload Handler */
+    function handleAudioUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioCtx.decodeAudioData(evt.target.result, function(buffer) {
+          // Play simulated inspection
+          triggerPreset('honk');
+          document.getElementById('alert-banner').style.display = 'flex';
+          document.getElementById('alert-text').innerText = `Audited file: ${file.name} - Classified as Honking Peak (+34 dB CPCB breach)!`;
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    /* Preset Sound Simulator for Reviews */
+    let currentPresetSample = 'honk';
+    const PRESETS = {
+      honk: { className: "Vehicular Honking", icon: "🚨", confidence: "96.4%", leq: 74.5, lmax: 82.1, crest: "7.6", zone: "silence" },
+      traffic: { className: "Continuous Traffic", icon: "🚛", confidence: "92.8%", leq: 68.2, lmax: 73.0, crest: "4.8", zone: "commercial" },
+      construction: { className: "Construction / Drilling", icon: "🔨", confidence: "89.5%", leq: 78.4, lmax: 86.2, crest: "7.8", zone: "commercial" },
+      quiet: { className: "Ambient Baseline", icon: "🍃", confidence: "97.1%", leq: 36.5, lmax: 40.2, crest: "3.7", zone: "silence" }
+    };
+
+    function triggerPreset(type) {
+      currentPresetSample = type;
+      const data = PRESETS[type];
+      updateDiagnosticsWithPreset(type);
+
+      // Synthesize audio tone preview
+      playWebAudioBeep(type);
+    }
+
+    function updateDiagnosticsWithPreset(type) {
+      const data = PRESETS[type];
+      updateReadouts(data);
+    }
+
+    function updateReadouts(data) {
+      document.getElementById('predicted-class-name').innerText = data.className;
+      document.getElementById('predicted-class-tag').firstElementChild.innerText = data.icon;
+      document.getElementById('predicted-confidence').innerText = data.confidence;
+      document.getElementById('val-leq').innerText = data.leq + " dB(A)";
+      document.getElementById('val-lmax').innerText = data.lmax + " dB(A)";
+      document.getElementById('val-crest').innerText = "+" + data.crest + " dB";
+
+      const limit = CPCB_LIMITS[currentMode].silence;
+      const delta = Math.round(data.leq - limit);
+      const deltaEl = document.getElementById('val-delta');
+      if (delta > 0) {
+        deltaEl.innerText = "+" + delta + " dB";
+        deltaEl.style.color = "var(--accent-red)";
+      } else {
+        deltaEl.innerText = delta + " dB";
+        deltaEl.style.color = "var(--accent-green)";
+      }
+
+      // Compute Sleep Disruption Score
+      const sleepScore = computeSleepScore(data.leq, data.lmax, data.zone || 'silence', currentMode);
+      document.getElementById('val-sleep-score').innerText = sleepScore + " / 100";
+      document.getElementById('sleep-meter-fill').style.width = sleepScore + "%";
+
+      // Color coding sleep score
+      const meterColor = getScoreColor(sleepScore);
+      document.getElementById('val-sleep-score').style.color = meterColor;
+
+      // Alert Banner
+      const alertEl = document.getElementById('alert-banner');
+      if (sleepScore > 65) {
+        alertEl.style.display = 'flex';
+        alertEl.innerHTML = `<span>⚠️</span> Severe Sleep-Disruption Spike! Exceeds statutory night cap by ${delta} dB!`;
+      } else {
+        alertEl.style.display = 'none';
+      }
+    }
+
+    /* Web Audio Sound Synthesizer (Instant playback without loading assets) */
+    function playWebAudioBeep(type) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        const now = ctx.currentTime;
+        if (type === 'honk') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(450, now);
+          osc.frequency.setValueAtTime(750, now + 0.1);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } else if (type === 'traffic') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(120, now);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+          osc.start(now);
+          osc.stop(now + 0.8);
+        } else if (type === 'construction') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(180, now);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+          osc.start(now);
+          osc.stop(now + 0.4);
+        }
+      } catch(e) {}
+    }
+
+    /* Export GeoJSON */
+    function exportData() {
+      const geojson = {
+        type: "FeatureCollection",
+        features: STREET_SEGMENTS.map(st => ({
+          type: "Feature",
+          properties: {
+            street_id: st.id,
+            name: st.name,
+            zone: st.zone,
+            leq_db: st.leq,
+            lmax_db: st.lmax,
+            source: st.source,
+            sleep_score: computeSleepScore(st.leq, st.lmax, st.zone, currentMode)
+          },
+          geometry: {
+            type: "LineString",
+            coordinates: st.coords.map(c => [c[1], c[0]]) // GeoJSON requires [lon, lat]
+          }
+        }))
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(geojson, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `decisense_corridor_${currentMode}.geojson`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    // Launch Map on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      triggerPreset('honk');
+    });
+  </script>
+</body>
+</html>

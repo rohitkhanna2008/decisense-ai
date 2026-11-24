@@ -1,0 +1,17 @@
+# DeciSense AI — Streamlit Community Cloud Dependencies
+# Poonamallee–Kuthambakkam–Porur Corridor · RIT Chennai · FRESHATHON 3.0
+
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+librosa>=0.10.0
+soundfile>=0.12.0
+scikit-learn>=1.3.0
+geopandas>=0.14.0
+shapely>=2.0.0
+osmnx>=1.8.0
+folium>=0.15.0
+streamlit>=1.28.0
+streamlit-folium>=0.16.0
+plotly>=5.18.0
+matplotlib>=3.7.0
