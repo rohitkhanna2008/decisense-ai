@@ -1,29 +1,33 @@
-# Python
+# Byte-compiled / optimized / cache files
 __pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-dist/
-build/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mpl_cache/
 
-# Virtual environments
+# Virtual environments & secrets
 .venv/
 venv/
 env/
+ENV/
+.env
+.streamlit/secrets.toml
 
-# IDE
+# IDE & OS files
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Matplotlib cache (generated locally)
-.mpl_cache/
+# Audio recordings - ignore raw field data but preserve directory via .gitkeep
+data/raw_recordings/*
+!data/raw_recordings/.gitkeep
 
-# Keep data/ and outputs/ tracked for Streamlit Community Cloud deployment
-# !data/
-# !outputs/
+# Explicitly keep deployment datasets, spatial geojson, sample WAVs, and evaluation outputs tracked
+!data/*.csv
+!data/*.geojson
+!data/*.json
+!data/sample_wavs/
+!data/sample_wavs/*
+!outputs/
+!outputs/*
