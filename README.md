@@ -104,7 +104,7 @@ $$\text{Score} = \min\left(100, \, W_{\text{time}} \cdot (E_{\text{base}} + P_{\
 ### 1. Environment Installation
 From the project root:
 ```bash
-cd "C:\Users\Rohit Khanna\.gemini\antigravity\scratch\quietgrid-ai"
+cd "C:\Users\Rohit Khanna\.gemini\antigravity\scratch\decisense-ai"
 pip install -r requirements.txt
 ```
 
@@ -132,10 +132,10 @@ The web interface will open automatically at **`http://localhost:8501`**.
 
 ## 👥 Team & FRESHATHON 3.0 Module Ownership
 
-| Role | Primary Deliverable | Script / Module |
-| :--- | :--- | :--- |
-| **Rohit Khanna B.K (Team Lead & Audio ML)** | Feature Extraction, $L_{\text{eq}}/L_{\text{max}}$, YAMNet classification | `src/audio_classifier.py` |
-| **Member 2 (Data & Calibration Lead)** | Data protocol, 150-point dataset, smartphone dB calibration | `src/generate_synthetic_data.py` |
-| **Member 3 (Geospatial & Spatial ML)** | Sleep-Disruption Index, 100m Silence POI buffers, k-NN IDW | `src/geospatial_engine.py` |
-| **Member 4 (Frontend UI/UX)** | Pure-white academic dashboard, Folium heatmap, Plotly charts | `app.py` |
-| **Member 5 (SDG Impact & Pitch)** | CPCB/WHO statutory framing, survey validation, slide deck | `README.md` / Pitch Deck |
+| Role | Team Member | Assigned Module & Key Deliverables | Script / Module |
+| :--- | :--- | :--- | :--- |
+| **Member 1 (Lead)** | **Rohit Khanna B.K** | System Architecture, DSP Calibration & ML Audio Classification — IEC 61672-1 A-weighting filter, 125 ms fast detector, 5-class acoustic classifier (96.0% accuracy, 0.901 macro F1), and Streamlit Cloud deployment. | `src/audio_classifier.py`, `src/evaluate_model.py`, `src/run_full_pipeline.py` |
+| **Member 2** | **Saipalaniappan T** | Acoustic Data Engineering & Field Telemetry — Poonamallee–Kuthambakkam–Porur corridor audio collection, 16 kHz standardization, and dataset validation (`data/chennai_audio_logs.csv`). | `src/data_pipeline/`, `src/generate_synthetic_data.py` |
+| **Member 3** | **Shree Mathi R S** | Geospatial Analytics, CPCB Compliance & Risk Scoring — UTM Zone 44N (`EPSG:32644`) street mapping, 100 m statutory Silence Zone buffers, k-NN IDW interpolation (< 2.8 s), and Sleep-Disruption Index (0–100). | `src/geospatial_engine.py`, `data/decisense_scored_streets.geojson` |
+| **Member 4** | **Rajeshwari.V** | Frontend UI/UX & Interactive Visualization — Built the mobile-responsive Streamlit + Folium web dashboard (`app.py`), live browser audio capture interface, and real-time spectrogram/risk views. | `app.py`, `src/data_pipeline/field_capture_ui.py` |
+| **Member 5** | **Savitha Sri C S** | Presentation Lead & Documentation — Designed the FRESHATHON 3.0 pitch deck, visual storytelling, and CPCB compliance presentation summaries. | `README.md`, `outputs/`, Pitch Deck |
