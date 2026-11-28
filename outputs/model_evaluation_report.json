@@ -1,10 +1,10 @@
 {
   "project": "DeciSense AI: Hyper-Local Acoustic Pollution & Sleep-Disruption Mapper",
   "milestone": "FRESHATHON 3.0 (1st Review) & IEEE Paper Benchmark",
-  "timestamp": "2026-11-24 19:07:11",
+  "timestamp": "2026-11-28 22:51:30",
   "dataset_sample_count": 150,
   "validation_strategy": "Stratified 5-Fold Cross-Validation (k=5)",
-  "inference_latency_ms_per_clip": 21.2,
+  "inference_latency_ms_per_clip": 7.15,
   "primary_deep_classifier": {
     "model_type": "Deep Acoustic Classifier (Log-Mel/MFCC Dense Neural Architecture)",
     "accuracy": 0.96,

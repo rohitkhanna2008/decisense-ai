@@ -5,6 +5,7 @@ and validates CPCB statutory zone types and acoustic classes.
 """
 
 import os
+import math
 import argparse
 from datetime import datetime
 import pandas as pd
@@ -59,9 +60,13 @@ def infer_time_window(timestamp_str_or_dt):
     """
     if isinstance(timestamp_str_or_dt, datetime):
         dt = timestamp_str_or_dt
+    elif timestamp_str_or_dt is None or (isinstance(timestamp_str_or_dt, float) and math.isnan(timestamp_str_or_dt)):
+        dt = datetime.now()
     else:
         try:
-            dt = pd.to_datetime(timestamp_str_or_dt)
+            dt = pd.to_datetime(timestamp_str_or_dt, errors="coerce")
+            if pd.isna(dt):
+                dt = datetime.now()
         except Exception:
             dt = datetime.now()
 
@@ -79,6 +84,9 @@ def validate_coordinates(lat, lon):
         lon = float(lon)
     except (ValueError, TypeError):
         return False, f"Coordinates must be numeric (received lat={lat}, lon={lon})."
+
+    if not (math.isfinite(lat) and math.isfinite(lon)):
+        return False, f"Coordinates must be finite numbers (received lat={lat}, lon={lon})."
 
     if not (LAT_MIN <= lat <= LAT_MAX):
         return False, f"Latitude {lat:.4f} is outside Chennai study bounds [{LAT_MIN}, {LAT_MAX}]."
@@ -177,7 +185,10 @@ def load_audio_logs(csv_path=CSV_LOG_PATH):
     df = df[SCHEMA_COLUMNS]
 
     if modified:
-        df.to_csv(csv_path, index=False)
+        try:
+            df.to_csv(csv_path, index=False)
+        except OSError:
+            pass
 
     return df
 
@@ -216,7 +227,10 @@ def register_audio_log(
     else:
         timestamp_str = str(timestamp)
         try:
-            dt = pd.to_datetime(timestamp_str)
+            dt = pd.to_datetime(timestamp_str, errors="coerce")
+            if pd.isna(dt):
+                dt = datetime.now()
+                timestamp_str = dt.strftime("%Y-%m-%d %H:%M:%S")
         except Exception:
             dt = datetime.now()
 
@@ -225,6 +239,8 @@ def register_audio_log(
     # Calculate crest factor
     leq = round(float(L_eq_db), 1)
     lmax = round(float(L_max_db), 1)
+    if not (math.isfinite(leq) and math.isfinite(lmax)):
+        raise ValueError("L_eq_db and L_max_db must be finite numbers.")
     if crest_factor_db is None:
         crest = round(float(max(0.0, lmax - leq)), 1)
     else:

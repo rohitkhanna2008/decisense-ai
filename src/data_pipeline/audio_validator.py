@@ -5,10 +5,18 @@ Converts raw smartphone field recordings into standardized 16 kHz, mono, 16-bit 
 """
 
 import os
+import sys
 import wave
 import io
 import numpy as np
 import scipy.signal as signal
+from scipy.io import wavfile
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+from src.audio_classifier import _normalize_audio_array
 
 # Optional imports
 try:
@@ -45,17 +53,20 @@ def validate_audio_quality(waveform, sample_rate=TARGET_SR):
     Returns:
         tuple: (is_valid: bool, reason: str, metrics: dict)
     """
-    if len(waveform) == 0:
+    arr = np.asarray(waveform, dtype=np.float32)
+    if arr.size == 0:
         return False, "EMPTY_SIGNAL", {"rms": 0.0, "clipped_ratio": 0.0}
+    if not np.all(np.isfinite(arr)):
+        arr = np.nan_to_num(arr, nan=0.0, posinf=1.0, neginf=-1.0)
 
     # 1. Check for silence (RMS < 1e-4)
-    rms = float(np.sqrt(np.mean(waveform**2) + 1e-12))
+    rms = float(np.sqrt(np.mean(arr**2) + 1e-12))
     if rms < 1e-4:
         return False, "REJECT_SILENT", {"rms": rms, "clipped_ratio": 0.0}
 
     # 2. Check for severe clipping (amplitude >= 0.99 for > 5% of frames)
-    clipped_count = np.sum(np.abs(waveform) >= 0.99)
-    clipped_ratio = float(clipped_count / len(waveform))
+    clipped_count = np.sum(np.abs(arr) >= 0.99)
+    clipped_ratio = float(clipped_count / len(arr))
     if clipped_ratio > 0.05:
         return False, "REJECT_CLIPPED", {"rms": rms, "clipped_ratio": clipped_ratio}
 
@@ -67,67 +78,48 @@ def validate_audio_quality(waveform, sample_rate=TARGET_SR):
 # -----------------------------------------------------------------------------
 def load_and_resample(file_input, target_sr=TARGET_SR):
     """
-    Decodes audio from file path or bytes and resamples to 16 kHz mono float32.
+    Decodes audio from file path, bytes/BytesIO, or ndarray and resamples to 16 kHz mono float32.
     """
     if isinstance(file_input, np.ndarray):
-        arr = file_input.astype(np.float32)
+        arr = np.nan_to_num(file_input.astype(np.float32), nan=0.0, posinf=1.0, neginf=-1.0)
         if arr.ndim > 1:
             arr = arr.mean(axis=1)
         return arr, target_sr
 
-    if isinstance(file_input, (bytes, io.BytesIO)):
-        bio = io.BytesIO(file_input) if isinstance(file_input, bytes) else file_input
-        # Try wave first
+    if isinstance(file_input, (bytes, bytearray, io.BytesIO)):
+        raw_bytes = bytes(file_input) if isinstance(file_input, (bytes, bytearray)) else file_input.getvalue()
         try:
-            with wave.open(bio, 'rb') as wf:
-                n_ch = wf.getnchannels()
-                width = wf.getsampwidth()
-                src_sr = wf.getframerate()
-                raw = wf.readframes(wf.getnframes())
-            if width == 2:
-                arr = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
-            elif width == 4:
-                arr = np.frombuffer(raw, dtype=np.int32).astype(np.float32) / 2147483648.0
-            else:
-                arr = np.frombuffer(raw, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
-
-            if n_ch > 1:
-                arr = arr.reshape(-1, n_ch).mean(axis=1)
-
-            if src_sr != target_sr and len(arr) > 0:
-                target_len = int(len(arr) * float(target_sr) / src_sr)
-                arr = signal.resample(arr, target_len)
-            return arr, target_sr
+            src_sr, data = wavfile.read(io.BytesIO(raw_bytes))
+            return _normalize_audio_array(data, src_sr, target_sr=target_sr)
         except Exception:
-            bio.seek(0)
             if HAS_SOUNDFILE:
-                arr, src_sr = sf.read(bio, dtype="float32")
-                if arr.ndim > 1:
-                    arr = arr.mean(axis=1)
-                if src_sr != target_sr:
-                    target_len = int(len(arr) * float(target_sr) / src_sr)
-                    arr = signal.resample(arr, target_len)
-                return arr, target_sr
+                arr, src_sr = sf.read(io.BytesIO(raw_bytes), dtype="float32")
+                return _normalize_audio_array(arr, src_sr, target_sr=target_sr)
+            if HAS_LIBROSA:
+                arr, _ = librosa.load(io.BytesIO(raw_bytes), sr=target_sr, mono=True)
+                return np.asarray(arr, dtype=np.float32), target_sr
+            raise
 
     # File path loading
     if HAS_LIBROSA:
         try:
             arr, sr = librosa.load(file_input, sr=target_sr, mono=True)
-            return arr, target_sr
+            return np.asarray(arr, dtype=np.float32), target_sr
         except Exception:
             pass
 
     if HAS_SOUNDFILE:
         try:
             arr, src_sr = sf.read(file_input, dtype="float32")
-            if arr.ndim > 1:
-                arr = arr.mean(axis=1)
-            if src_sr != target_sr:
-                target_len = int(len(arr) * float(target_sr) / src_sr)
-                arr = signal.resample(arr, target_len)
-            return arr, target_sr
+            return _normalize_audio_array(arr, src_sr, target_sr=target_sr)
         except Exception:
             pass
+
+    try:
+        src_sr, data = wavfile.read(file_input)
+        return _normalize_audio_array(data, src_sr, target_sr=target_sr)
+    except Exception:
+        pass
 
     # Standard wave reader fallback
     with wave.open(file_input, 'rb') as wf:
@@ -137,20 +129,16 @@ def load_and_resample(file_input, target_sr=TARGET_SR):
         raw = wf.readframes(wf.getnframes())
 
     if width == 2:
-        arr = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+        arr = np.frombuffer(raw, dtype=np.int16)
     elif width == 4:
-        arr = np.frombuffer(raw, dtype=np.int32).astype(np.float32) / 2147483648.0
+        arr = np.frombuffer(raw, dtype=np.int32)
     else:
-        arr = np.frombuffer(raw, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
+        arr = np.frombuffer(raw, dtype=np.uint8)
 
-    if n_ch > 1:
-        arr = arr.reshape(-1, n_ch).mean(axis=1)
+    if n_ch > 1 and arr.size > 0:
+        arr = arr.reshape(-1, n_ch)
 
-    if src_sr != target_sr and len(arr) > 0:
-        target_len = int(len(arr) * float(target_sr) / src_sr)
-        arr = signal.resample(arr, target_len)
-
-    return arr, target_sr
+    return _normalize_audio_array(arr, src_sr, target_sr=target_sr)
 
 
 def save_pcm16_wav(filepath, waveform, sample_rate=TARGET_SR):

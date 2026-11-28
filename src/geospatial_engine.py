@@ -29,12 +29,14 @@ CPCB_LIMITS = {
     "day": {
         "silence": 50.0,
         "residential": 55.0,
-        "commercial": 65.0
+        "commercial": 65.0,
+        "industrial": 75.0,
     },
     "night": {
         "silence": 40.0,
         "residential": 45.0,
-        "commercial": 55.0
+        "commercial": 55.0,
+        "industrial": 70.0,
     }
 }
 
@@ -179,11 +181,23 @@ def compute_sleep_disruption_index(leq, lmax, zone="residential", timestamp_hour
     - Night Multiplier: 1.3 if timestamp hour is between 22:00 and 06:00, else 1.0
     - Final Score: min(100, W_time * (E_base + P_impulse))
     """
+    try:
+        leq = float(leq)
+        lmax = float(lmax)
+        timestamp_hour = int(timestamp_hour)
+    except (TypeError, ValueError):
+        leq, lmax, timestamp_hour = 0.0, 0.0, 23
+
+    if not np.isfinite(leq):
+        leq = 0.0
+    if not np.isfinite(lmax):
+        lmax = leq
+
     is_night = (timestamp_hour >= 22 or timestamp_hour < 6)
     mode = "night" if is_night else "day"
     
     # Statutory threshold
-    l_limit = CPCB_LIMITS[mode].get(zone, 45.0)
+    l_limit = CPCB_LIMITS[mode].get(str(zone).strip().lower(), 45.0)
 
     # Base Excess
     e_base = max(0.0, leq - l_limit) * 2.0
@@ -290,6 +304,7 @@ def compute_haversine_distance(lat1, lon1, lat2, lon2):
 
     a = (np.sin(delta_phi / 2.0)**2 +
          np.cos(phi1) * np.cos(phi2) * np.sin(delta_lambda / 2.0)**2)
+    a = np.clip(a, 0.0, 1.0)
     c = 2.0 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a))
     return R * c
 
@@ -299,24 +314,35 @@ def run_idw_interpolation(audio_df, is_night=True, k=5, power=2.0):
     Interpolates sensor point readings onto each corridor street segment
     using k-Nearest Neighbor Inverse Distance Weighting.
     """
+    if audio_df is None or len(audio_df) == 0:
+        return {"type": "FeatureCollection", "features": []}
+
+    valid_df = audio_df.dropna(subset=["latitude", "longitude", "L_eq_db", "L_max_db"]).copy()
+    if valid_df.empty:
+        return {"type": "FeatureCollection", "features": []}
+
     # Filter points by time window if available
-    if "timestamp" in audio_df.columns:
-        hours = pd.to_datetime(audio_df["timestamp"]).dt.hour
+    if "timestamp" in valid_df.columns:
+        hours = pd.to_datetime(valid_df["timestamp"], errors="coerce").dt.hour
         if is_night:
-            pts_df = audio_df[(hours >= 22) | (hours < 6)]
+            pts_df = valid_df[(hours >= 22) | (hours < 6)]
         else:
-            pts_df = audio_df[(hours >= 6) & (hours < 22)]
+            pts_df = valid_df[(hours >= 6) & (hours < 22)]
         if len(pts_df) < 5:
-            pts_df = audio_df
+            pts_df = valid_df
     else:
-        pts_df = audio_df
+        pts_df = valid_df
 
-    pt_lats = pts_df["latitude"].values
-    pt_lons = pts_df["longitude"].values
-    pt_leqs = pts_df["L_eq_db"].values
-    pt_lmaxs = pts_df["L_max_db"].values
-    pt_classes = pts_df["ground_truth_class"].values
+    pt_lats = pts_df["latitude"].astype(float).values
+    pt_lons = pts_df["longitude"].astype(float).values
+    pt_leqs = pts_df["L_eq_db"].astype(float).values
+    pt_lmaxs = pts_df["L_max_db"].astype(float).values
+    if "ground_truth_class" in pts_df.columns:
+        pt_classes = pts_df["ground_truth_class"].fillna("unknown").astype(str).values
+    else:
+        pt_classes = np.array(["unknown"] * len(pts_df))
 
+    k_eff = max(1, min(int(k), len(pts_df)))
     eval_hour = 23 if is_night else 14
     scored_features = []
 
@@ -330,10 +356,12 @@ def run_idw_interpolation(audio_df, is_night=True, k=5, power=2.0):
         distances = compute_haversine_distance(mid_lat, mid_lon, pt_lats, pt_lons)
         
         # Select k nearest neighbors
-        k_indices = np.argsort(distances)[:k]
+        k_indices = np.argsort(distances)[:k_eff]
         k_dists = np.maximum(distances[k_indices], 10.0)  # clamp to 10m minimum to avoid division by 0
         weights = 1.0 / (k_dists ** power)
         weight_sum = np.sum(weights)
+        if weight_sum <= 0 or not np.isfinite(weight_sum):
+            continue
 
         # IDW interpolation for Leq and Lmax
         interp_leq = round(float(np.sum(weights * pt_leqs[k_indices]) / weight_sum), 1)
@@ -341,7 +369,7 @@ def run_idw_interpolation(audio_df, is_night=True, k=5, power=2.0):
         
         # Most frequent dominant class among nearest neighbors
         k_classes = list(pt_classes[k_indices])
-        dominant_class = max(set(k_classes), key=k_classes.count)
+        dominant_class = max(set(k_classes), key=k_classes.count) if k_classes else "unknown"
 
         # Compute sleep score
         score_res = compute_sleep_disruption_index(

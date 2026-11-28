@@ -7,7 +7,6 @@ RIT Chennai | FRESHATHON 3.0 | UN SDG 11 (Target 11.6) & SDG 3 (Target 3.9)
 import os
 import sys
 import json
-import wave
 import io
 import numpy as np
 import pandas as pd
@@ -32,6 +31,9 @@ from src.audio_classifier import (
 from src.geospatial_engine import (
     compute_sleep_disruption_index, CHENNAI_SILENCE_POIS,
     CHENNAI_CORRIDOR_STREETS, CPCB_LIMITS, run_idw_interpolation
+)
+from src.apilayer_geo import (
+    list_country_codes, lookup_apilayer_geolocation, validate_within_country_bounds
 )
 
 # Optional Plotly / Folium imports with graceful fallbacks
@@ -62,14 +64,14 @@ st.set_page_config(
 
 
 # =============================================================================
-# Responsive Pure-White CSS (Mobile → Desktop)
+# Responsive Black & White Monochrome CSS (Mobile → Desktop)
 # =============================================================================
 st.markdown("""
 <style>
 /* ---- Reset & Base Canvas ------------------------------------------------- */
 html, body, .main, .stApp {
     background-color: #FFFFFF !important;
-    color: #0F172A;
+    color: #000000;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
                  Arial, sans-serif;
 }
@@ -84,16 +86,22 @@ div[data-testid="stStatusWidget"] {
     display: none !important;
 }
 
+/* ---- Monochrome Accents & Progress Bars -------------------------------- */
+[data-testid="stProgress"] > div > div > div > div {
+    background-color: #000000 !important;
+}
+
 /* ---- Sidebar polish ------------------------------------------------------ */
 section[data-testid="stSidebar"] {
-    background: #F8FAFC;
-    border-right: 1px solid #E2E8F0;
+    background: #F5F5F5;
+    border-right: 1px solid #000000;
 }
 section[data-testid="stSidebar"] .stSelectbox label,
-section[data-testid="stSidebar"] .stSlider label {
-    color: #0F172A;
-    font-weight: 600;
-    font-size: 0.82rem;
+section[data-testid="stSidebar"] .stSlider label,
+section[data-testid="stSidebar"] .stTextInput label {
+    color: #000000;
+    font-weight: 700;
+    font-size: 0.80rem;
     text-transform: uppercase;
     letter-spacing: 0.4px;
 }
@@ -101,14 +109,14 @@ section[data-testid="stSidebar"] .stSlider label {
 /* ---- Header Card --------------------------------------------------------- */
 .ds-header {
     background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 12px;
+    border: 1.5px solid #000000;
+    border-radius: 10px;
     padding: 20px 24px;
     margin-bottom: 20px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: 0 2px 0 #000000;
 }
 .ds-header h1 {
-    color: #0F172A;
+    color: #000000;
     font-size: 1.75rem;
     font-weight: 800;
     letter-spacing: -0.4px;
@@ -119,7 +127,7 @@ section[data-testid="stSidebar"] .stSlider label {
     flex-wrap: wrap;
 }
 .ds-header p {
-    color: #475569;
+    color: #404040;
     font-size: 0.88rem;
     font-weight: 500;
     margin: 0;
@@ -128,16 +136,16 @@ section[data-testid="stSidebar"] .stSlider label {
 .ds-badge {
     display: inline-block;
     padding: 2px 8px;
-    border-radius: 5px;
+    border-radius: 4px;
     font-size: 0.68rem;
     font-weight: 700;
     vertical-align: middle;
 }
-.ds-badge-green {
-    background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0;
+.ds-badge-solid {
+    background: #000000; color: #FFFFFF; border: 1px solid #000000;
 }
-.ds-badge-blue {
-    background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE;
+.ds-badge-outline {
+    background: #FFFFFF; color: #000000; border: 1px solid #000000;
 }
 
 /* ---- KPI Grid ------------------------------------------------------------ */
@@ -148,14 +156,14 @@ section[data-testid="stSidebar"] .stSlider label {
     margin-bottom: 20px;
 }
 .kpi-card {
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
-    border-radius: 10px;
+    background: #FAFAFA;
+    border: 1px solid #000000;
+    border-radius: 8px;
     padding: 16px 18px;
     min-height: 100px;
 }
 .kpi-label {
-    color: #64748B;
+    color: #525252;
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -167,31 +175,32 @@ section[data-testid="stSidebar"] .stSlider label {
     font-weight: 800;
     font-feature-settings: "tnum";
     line-height: 1.15;
+    color: #000000;
 }
 .kpi-unit {
     font-size: 0.85rem;
-    color: #64748B;
+    color: #525252;
     font-weight: 600;
 }
 .kpi-sub {
     font-size: 0.72rem;
-    color: #64748B;
+    color: #525252;
     margin-top: 4px;
     font-weight: 500;
 }
 
-/* ---- Semantic Badge Colors ----------------------------------------------- */
-.c-navy   { color: #0F172A; }
-.c-teal   { color: #0D9488; }
+/* ---- Semantic Indicator & Monochrome Accent Classes ---------------------- */
+.c-black  { color: #000000; }
+.c-dark   { color: #262626; }
+.c-mid    { color: #525252; }
+.c-muted  { color: #737373; }
 .c-red    { color: #DC2626; }
 .c-amber  { color: #D97706; }
 .c-green  { color: #16A34A; }
-.c-blue   { color: #2563EB; }
-.c-muted  { color: #64748B; }
 
 /* ---- Section Header ------------------------------------------------------ */
 .sec-hdr {
-    color: #0F172A;
+    color: #000000;
     font-size: 1.08rem;
     font-weight: 700;
     margin: 10px 0 14px;
@@ -199,14 +208,14 @@ section[data-testid="stSidebar"] .stSlider label {
 
 /* ---- Diagnostic Result Card ---------------------------------------------- */
 .diag-card {
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
-    border-radius: 10px;
+    background: #FAFAFA;
+    border: 1px solid #000000;
+    border-radius: 8px;
     padding: 14px 18px;
     margin: 10px 0;
 }
 
-/* ---- Pass / Fail Badge --------------------------------------------------- */
+/* ---- Pass / Fail Badges (Semantic Indicators) ---------------------------- */
 .badge-pass {
     display: inline-block;
     background: #ECFDF5; color: #16A34A; border: 1px solid #BBF7D0;
@@ -228,18 +237,19 @@ section[data-testid="stSidebar"] .stSlider label {
 .stDownloadButton > button {
     min-height: 44px !important;
     min-width: 44px !important;
-    border-radius: 8px !important;
+    border-radius: 6px !important;
+    border: 1px solid #000000 !important;
 }
 
 /* ---- Floating Map Legend ------------------------------------------------- */
 .map-legend {
-    background: rgba(255,255,255,0.95);
-    border: 1px solid #E2E8F0;
-    border-radius: 10px;
+    background: #FFFFFF;
+    border: 1px solid #000000;
+    border-radius: 8px;
     padding: 12px 16px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
     font-size: 0.78rem;
     line-height: 1.65;
+    color: #000000;
 }
 
 /* ==== MOBILE BREAKPOINT (<768 px) ========================================= */
@@ -287,27 +297,49 @@ section[data-testid="stSidebar"] .stSlider label {
 
 
 # =============================================================================
-# Cached Data Loaders (Streamlit Community Cloud ready)
+# Cached Data & Resource Loaders (Streamlit Community Cloud ready)
 # =============================================================================
-@st.cache_data(show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def load_corridor_data():
     csv_path = os.path.join(BASE_DIR, "data", "chennai_audio_logs.csv")
     if not os.path.exists(csv_path):
         from src.generate_synthetic_data import generate_dataset
         generate_dataset(BASE_DIR)
     df = pd.read_csv(csv_path)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df["hour"] = df["timestamp"].dt.hour
+    for col in ("latitude", "longitude", "L_eq_db", "L_max_db"):
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    df = df.dropna(subset=["latitude", "longitude", "L_eq_db", "L_max_db"]).copy()
+    if "zone_type" in df.columns:
+        df["zone_type"] = df["zone_type"].fillna("residential").astype(str).str.strip().str.lower()
+    else:
+        df["zone_type"] = "residential"
+    if "ground_truth_class" in df.columns:
+        df["ground_truth_class"] = df["ground_truth_class"].fillna("ambient_baseline").astype(str)
+    else:
+        df["ground_truth_class"] = "ambient_baseline"
+
+    ts = pd.to_datetime(df.get("timestamp"), errors="coerce")
+    df["timestamp"] = ts
+    df["hour"] = ts.dt.hour.fillna(12).astype(int)
     df["is_night"] = (df["hour"] >= 22) | (df["hour"] < 6)
     return df
+
+
+@st.cache_resource(show_spinner=False)
+def load_cached_classifier():
+    return get_classifier()
 
 
 @st.cache_data(show_spinner=False)
 def load_scored_streets_geojson():
     p = os.path.join(BASE_DIR, "data", "decisense_scored_streets.geojson")
     if os.path.exists(p):
-        with open(p, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
     return None
 
 
@@ -315,8 +347,11 @@ def load_scored_streets_geojson():
 def load_silence_zones_geojson():
     p = os.path.join(BASE_DIR, "data", "silence_zones.geojson")
     if os.path.exists(p):
-        with open(p, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
     return None
 
 
@@ -324,16 +359,27 @@ def load_silence_zones_geojson():
 def load_evaluation_report():
     p = os.path.join(BASE_DIR, "outputs", "model_evaluation_report.json")
     if os.path.exists(p):
-        with open(p, "r", encoding="utf-8") as f:
-            return json.load(f)
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
     return None
+
+
+@st.cache_data(show_spinner=False)
+def load_apilayer_geo_context(ip_or_host="", country_code="IN"):
+    return lookup_apilayer_geolocation(ip_or_host=ip_or_host, country_code=country_code)
 
 
 @st.cache_data(show_spinner=False)
 def load_cpcb_audit():
     p = os.path.join(BASE_DIR, "outputs", "cpcb_zone_compliance_summary.csv")
     if os.path.exists(p):
-        return pd.read_csv(p)
+        try:
+            return pd.read_csv(p)
+        except Exception:
+            return None
     return None
 
 
@@ -355,10 +401,11 @@ with st.sidebar:
          "Day: 06:00–22:00",
          "Night: 22:00–06:00"],
         index=0,
+        key="time_window",
     )
 
     zone_options = ["All Zones", "Silence", "Residential", "Commercial"]
-    zone_filter = st.selectbox("CPCB Zone Type", zone_options, index=0)
+    zone_filter = st.selectbox("CPCB Zone Type", zone_options, index=0, key="zone_filter")
 
     st.markdown("---")
     st.markdown("### 📱 Mic Calibration")
@@ -369,6 +416,24 @@ with st.sidebar:
         value=92.0,
         step=0.5,
         help="Offset calibrated against a Class-2 sound level meter.",
+        key="calib_offset",
+    )
+
+    st.markdown("---")
+    st.markdown("### 🌐 APILayer Geo Context")
+    country_codes = list_country_codes() or ["IN"]
+    default_cc_idx = country_codes.index("IN") if "IN" in country_codes else 0
+    selected_country = st.selectbox(
+        "Country Profile (apilayer/geolocationapi)",
+        country_codes,
+        index=default_cc_idx,
+        key="apilayer_country",
+    )
+    geo_host_input = st.text_input(
+        "freegeoip Host / IP",
+        value="127.0.0.1",
+        help="Uses apilayer/freegeoip schema and apilayer/geolocationapi country metadata.",
+        key="apilayer_host",
     )
 
     st.markdown("---")
@@ -420,6 +485,14 @@ mean_sleep_score = int(np.mean(scores_list)) if scores_list else 0
 is_night_mode = "Night" in time_window
 
 
+apilayer_ctx = load_apilayer_geo_context(
+    ip_or_host=geo_host_input,
+    country_code=selected_country,
+)
+corridor_in_country, corridor_bounds_msg = validate_within_country_bounds(
+    13.0475, 80.0250, country_code=selected_country
+)
+
 # =============================================================================
 # Header
 # =============================================================================
@@ -427,8 +500,8 @@ st.markdown("""
 <div class="ds-header">
     <h1>
         🔇 DeciSense AI
-        <span class="ds-badge ds-badge-green">UN SDG 11.6 &amp; SDG 3</span>
-        <span class="ds-badge ds-badge-blue">FRESHATHON 3.0</span>
+        <span class="ds-badge ds-badge-solid">UN SDG 11.6 &amp; SDG 3</span>
+        <span class="ds-badge ds-badge-outline">FRESHATHON 3.0</span>
     </h1>
     <p>
         <b>Hyper-Local Acoustic Pollution &amp; Sleep-Disruption Mapper</b><br/>
@@ -454,7 +527,7 @@ st.markdown(f"""
 <div class="kpi-grid">
     <div class="kpi-card">
         <div class="kpi-label">Avg L<sub>eq</sub></div>
-        <div class="kpi-value c-navy">{avg_leq} <span class="kpi-unit">dB(A)</span></div>
+        <div class="kpi-value c-black">{avg_leq} <span class="kpi-unit">dB(A)</span></div>
         <div class="kpi-sub">Equivalent continuous sound energy</div>
     </div>
     <div class="kpi-card">
@@ -499,7 +572,7 @@ with tab_map:
         m = folium.Map(
             location=[center_lat, center_lon],
             zoom_start=14,
-            tiles="CartoDB positron",
+            tiles="OpenStreetMap",
             control_scale=True,
         )
 
@@ -533,6 +606,8 @@ with tab_map:
 
         # 2 — k-NN IDW Street Polylines
         scored_streets_geojson = run_idw_interpolation(filtered_df, is_night=is_night_mode)
+        if not scored_streets_geojson["features"]:
+            st.info("No acoustic observations match the current filters; showing 100 m CPCB Silence Zones only.")
         for feat in scored_streets_geojson["features"]:
             props = feat["properties"]
             coords = [[c[1], c[0]] for c in feat["geometry"]["coordinates"]]
@@ -545,12 +620,12 @@ with tab_map:
             )
             popup_html = (
                 f'<div style="font-family:sans-serif;font-size:12px;line-height:1.45;min-width:190px">'
-                f'<b style="font-size:13px;color:#0F172A">{props["street_name"]}</b><br/>'
+                f'<b style="font-size:13px;color:#000000">{props["street_name"]}</b><br/>'
                 f'Zone: <b>{props["zone_type"].upper()}</b><br/>'
                 f'L<sub>eq</sub>: <b>{props["L_eq_db"]} dB(A)</b> · '
                 f'L<sub>max</sub>: <b>{props["L_max_db"]} dB(A)</b><br/>'
-                f'Noise: <span style="color:#2563EB">{props["dominant_noise_source"]}</span><br/>'
-                f'<hr style="margin:5px 0;border:0;border-top:1px solid #E2E8F0"/>'
+                f'Noise: <b>{props["dominant_noise_source"]}</b><br/>'
+                f'<hr style="margin:5px 0;border:0;border-top:1px solid #D4D4D4"/>'
                 f'Sleep Score: <b style="color:{color};font-size:14px">{props["sleep_disruption_score"]}/100</b><br/>'
                 f'Status: {status_html}</div>'
             )
@@ -562,7 +637,14 @@ with tab_map:
                 popup=folium.Popup(popup_html, max_width=260),
             ).add_to(m)
 
-        st_folium(m, width="100%", height=560, returned_objects=[])
+        st_folium(
+            m,
+            key="chennai_corridor_map",
+            width=None,
+            height=560,
+            use_container_width=True,
+            returned_objects=[],
+        )
 
         # Compact floating legend + download
         col_leg, col_dl = st.columns([2, 1])
@@ -570,9 +652,9 @@ with tab_map:
             st.markdown("""
 <div class="map-legend">
 <b>Sleep-Disruption Risk</b><br/>
-<span style="color:#DC2626;font-weight:700">■</span> Critical (> 65) · 
+<span style="color:#DC2626;font-weight:700">■</span> Critical (&gt; 65) · 
 <span style="color:#D97706;font-weight:700">■</span> Moderate (40–65) · 
-<span style="color:#16A34A;font-weight:700">■</span> Compliant (< 40)<br/>
+<span style="color:#16A34A;font-weight:700">■</span> Compliant (&lt; 40)<br/>
 <span style="color:#DC2626">⬚ Dashed Red:</span> 100 m CPCB Silence Zone
 </div>
 """, unsafe_allow_html=True)
@@ -584,6 +666,26 @@ with tab_map:
                 file_name="decisense_scored_streets.geojson",
                 mime="application/json",
             )
+
+        fg_rec = apilayer_ctx["freegeoip"]
+        c_meta = apilayer_ctx["country"]
+        st.markdown("#### APILayer Geolocation & Country Values")
+        geo_c1, geo_c2, geo_c3, geo_c4 = st.columns(4)
+        with geo_c1:
+            st.metric("Country (ISO)", f"{c_meta['alpha2']} / {c_meta['alpha3']}")
+        with geo_c2:
+            st.metric("City / Time Zone", f"{fg_rec['city'] or c_meta['name']} · {fg_rec['time_zone']}")
+        with geo_c3:
+            st.metric("Calling / Currency", f"{c_meta['calling_code']} · {c_meta['currency_code']}")
+        with geo_c4:
+            st.metric("Corridor Bounds Check", "Inside" if corridor_in_country else "Outside")
+        st.caption(
+            f"Source: {apilayer_ctx['source']} | Region: {c_meta['subregion']} ({c_meta['world_region']}) | "
+            f"{corridor_bounds_msg}"
+        )
+        with st.expander("View freegeoip + geolocationapi Payload", expanded=False):
+            st.json(apilayer_ctx)
+            st.code(apilayer_ctx["freegeoip_csv"], language="text")
 
     else:
         st.warning("Folium / streamlit-folium not installed. Showing tabular GIS data.")
@@ -614,14 +716,15 @@ with tab_diag:
         presets,
         index=1 if available_samples else 0,
         help="Pre-generated 5 s clips covering the five target classes.",
+        key="sample_choice",
     )
 
-    uploaded_audio = st.file_uploader("Or upload a custom WAV file", type=["wav"])
+    uploaded_audio = st.file_uploader("Or upload a custom WAV file", type=["wav"], key="uploaded_audio")
 
     audio_bytes = None
     current_audio_label = ""
     if uploaded_audio is not None:
-        audio_bytes = uploaded_audio.read()
+        audio_bytes = uploaded_audio.getvalue()
         current_audio_label = uploaded_audio.name
     elif sample_choice != "— select preset —" and available_samples:
         sample_path = os.path.join(sample_wavs_dir, sample_choice)
@@ -632,104 +735,116 @@ with tab_diag:
     if audio_bytes is not None:
         st.audio(audio_bytes, format="audio/wav")
 
-        # Parse WAV
-        with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
-            sr = wf.getframerate()
-            n_frames = wf.getnframes()
-            raw = wf.readframes(n_frames)
-            waveform = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+        waveform = None
+        sr = 16000
+        try:
+            waveform, sr = load_audio(io.BytesIO(audio_bytes), target_sr=16000)
+        except Exception as exc:
+            st.error(f"Unable to decode WAV audio ({exc}). Please upload a valid PCM or IEEE-float WAV file.")
 
-        leq_calc, lmax_calc, crest_calc = compute_decibel_metrics(
-            waveform, sample_rate=sr, offset_db=calib_offset
-        )
+        if waveform is not None and len(waveform) == 0:
+            st.warning("The selected audio file contains 0 samples.")
+        elif waveform is not None:
+            leq_calc, lmax_calc, crest_calc = compute_decibel_metrics(
+                waveform, sample_rate=sr, offset_db=calib_offset
+            )
 
-        classifier = get_classifier()
-        pred = classifier.predict(waveform, sample_rate=sr, leq=leq_calc, crest=crest_calc)
+            classifier = load_cached_classifier()
+            pred = classifier.predict(waveform, sample_rate=sr, leq=leq_calc, crest=crest_calc)
 
-        sleep_res = compute_sleep_disruption_index(
-            leq_calc, lmax_calc, zone="silence", timestamp_hour=23
-        )
+            sleep_res = compute_sleep_disruption_index(
+                leq_calc, lmax_calc, zone="silence", timestamp_hour=23
+            )
 
-        # Metrics row
-        mc1, mc2, mc3 = st.columns(3)
-        with mc1:
-            st.metric("L_eq  (dB A)", f"{leq_calc}")
-        with mc2:
-            st.metric("L_max (dB A)", f"{lmax_calc}")
-        with mc3:
-            st.metric("Crest Factor", f"+{crest_calc} dB")
+            # Metrics row
+            mc1, mc2, mc3 = st.columns(3)
+            with mc1:
+                st.metric("L_eq  (dB A)", f"{leq_calc}")
+            with mc2:
+                st.metric("L_max (dB A)", f"{lmax_calc}")
+            with mc3:
+                st.metric("Crest Factor", f"+{crest_calc} dB")
 
-        # Classification result card
-        pred_cls = pred["predicted_class"].replace("_", " ").title()
-        conf_pct = pred["confidence"] * 100
+            # Classification result card
+            pred_cls = pred["predicted_class"].replace("_", " ").title()
+            conf_pct = pred["confidence"] * 100
 
-        st.markdown(f"""
+            st.markdown(f"""
 <div class="diag-card">
     <div class="kpi-label">Predicted Noise Event</div>
-    <div style="font-size:1.35rem;font-weight:800;color:#2563EB;margin-top:4px">{pred_cls}</div>
-    <div style="font-size:0.82rem;color:#64748B;margin-top:2px">
+    <div style="font-size:1.35rem;font-weight:800;color:#000000;margin-top:4px">{pred_cls}</div>
+    <div style="font-size:0.82rem;color:#525252;margin-top:2px">
         Confidence: <b>{conf_pct:.1f} %</b>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-        # Confidence bar chart for all 5 classes
-        if HAS_PLOTLY:
+            # Confidence bar chart for all 5 classes
             probs = pred["probabilities"]
-            fig_conf = go.Figure(go.Bar(
-                x=[probs.get(c, 0) * 100 for c in CLASSES],
-                y=[c.replace("_", " ").title() for c in CLASSES],
-                orientation="h",
-                marker_color=["#0D9488" if c == pred["predicted_class"] else "#CBD5E1" for c in CLASSES],
-            ))
-            fig_conf.update_layout(
-                xaxis_title="Confidence %",
-                height=200,
-                margin=dict(l=10, r=10, t=10, b=10),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
+            if HAS_PLOTLY:
+                fig_conf = go.Figure(go.Bar(
+                    x=[probs.get(c, 0) * 100 for c in CLASSES],
+                    y=[c.replace("_", " ").title() for c in CLASSES],
+                    orientation="h",
+                    marker_color=["#000000" if c == pred["predicted_class"] else "#D4D4D4" for c in CLASSES],
+                ))
+                fig_conf.update_layout(
+                    xaxis_title="Confidence %",
+                    height=200,
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    font=dict(color="#000000"),
+                )
+                st.plotly_chart(fig_conf, width="stretch")
+            else:
+                prob_df = pd.DataFrame({
+                    "Class": [c.replace("_", " ").title() for c in CLASSES],
+                    "Confidence %": [round(probs.get(c, 0) * 100, 1) for c in CLASSES],
+                }).set_index("Class")
+                st.bar_chart(prob_df, color="#000000")
+
+            # Sleep-Disruption Index
+            score_val = sleep_res["score"]
+            st.progress(min(score_val / 100.0, 1.0))
+
+            badge_cls = (
+                "badge-fail" if score_val >= 65
+                else ("badge-warn" if score_val >= 40 else "badge-pass")
             )
-            st.plotly_chart(fig_conf, use_container_width=True)
-
-        # Sleep-Disruption Index
-        score_val = sleep_res["score"]
-        st.progress(min(score_val / 100.0, 1.0))
-
-        badge_cls = (
-            "badge-fail" if score_val >= 65
-            else ("badge-warn" if score_val >= 40 else "badge-pass")
-        )
-        badge_text = (
-            "CPCB Breach" if sleep_res["is_violation"]
-            else ("Moderate Risk" if score_val >= 40 else "Compliant")
-        )
-        st.markdown(
-            f'**Sleep-Disruption Index:** `{score_val} / 100` '
-            f'<span class="{badge_cls}">{badge_text}</span>',
-            unsafe_allow_html=True,
-        )
-
-        if sleep_res["is_violation"]:
-            st.error(
-                f"🚨 Exceeds CPCB Silence Limit (40 dB) by **+{sleep_res['delta_db']} dB(A)**!"
+            badge_text = (
+                "CPCB Breach" if sleep_res["is_violation"]
+                else ("Moderate Risk" if score_val >= 40 else "Compliant")
+            )
+            st.markdown(
+                f'**Sleep-Disruption Index:** `{score_val} / 100` '
+                f'<span class="{badge_cls}">{badge_text}</span>',
+                unsafe_allow_html=True,
             )
 
-        # Log-Mel Spectrogram
-        st.markdown("#### Log-Mel Spectrogram")
-        log_mel = compute_mel_spectrogram(waveform, sample_rate=sr)
-        fig_mel, ax_mel = plt.subplots(figsize=(8, 2.6), facecolor="#FFFFFF")
-        img_mel = ax_mel.imshow(log_mel, origin="lower", aspect="auto", cmap="magma")
-        ax_mel.set_title(
-            f"Log-Mel Spectrogram  ({current_audio_label})",
-            fontsize=10, color="#0F172A", fontweight="bold",
-        )
-        ax_mel.set_xlabel("Time Frames", fontsize=8, color="#475569")
-        ax_mel.set_ylabel("Mel Bins", fontsize=8, color="#475569")
-        ax_mel.tick_params(colors="#475569", labelsize=7)
-        fig_mel.colorbar(img_mel, ax=ax_mel, format="%+2.0f dB")
-        fig_mel.tight_layout()
-        st.pyplot(fig_mel)
-        plt.close(fig_mel)
+            if sleep_res["is_violation"]:
+                st.error(
+                    f"🚨 Exceeds CPCB Silence Limit (40 dB) by **+{sleep_res['delta_db']} dB(A)**!"
+                )
+
+            # Log-Mel Spectrogram (Monochrome)
+            st.markdown("#### Log-Mel Spectrogram")
+            log_mel = compute_mel_spectrogram(waveform, sample_rate=sr)
+            fig_mel, ax_mel = plt.subplots(figsize=(8, 2.6), facecolor="#FFFFFF")
+            try:
+                img_mel = ax_mel.imshow(log_mel, origin="lower", aspect="auto", cmap="gray")
+                ax_mel.set_title(
+                    f"Log-Mel Spectrogram  ({current_audio_label})",
+                    fontsize=10, color="#000000", fontweight="bold",
+                )
+                ax_mel.set_xlabel("Time Frames", fontsize=8, color="#404040")
+                ax_mel.set_ylabel("Mel Bins", fontsize=8, color="#404040")
+                ax_mel.tick_params(colors="#000000", labelsize=7)
+                fig_mel.colorbar(img_mel, ax=ax_mel, format="%+2.0f dB")
+                fig_mel.tight_layout()
+                st.pyplot(fig_mel)
+            finally:
+                plt.close(fig_mel)
 
     else:
         st.info("Select a benchmark preset or upload a WAV file to begin diagnostic analysis.")
@@ -742,113 +857,127 @@ with tab_analytics:
     st.markdown('<div class="sec-hdr">Noise Source Distribution & CPCB Threshold Compliance</div>',
                 unsafe_allow_html=True)
 
-    col_c1, col_c2 = st.columns(2)
-
-    # 3a — Source Breakdown Donut
-    with col_c1:
-        st.markdown("#### Dominant Noise Source Breakdown")
-        source_counts = filtered_df["ground_truth_class"].value_counts().reset_index()
-        source_counts.columns = ["Noise Source", "Count"]
-
-        if HAS_PLOTLY:
-            fig_pie = px.pie(
-                source_counts,
-                values="Count",
-                names="Noise Source",
-                hole=0.45,
-                color="Noise Source",
-                color_discrete_map={
-                    "vehicular_honking": "#EF4444",
-                    "continuous_traffic": "#F59E0B",
-                    "construction_piling": "#8B5CF6",
-                    "pa_loudspeaker": "#EC4899",
-                    "ambient_baseline": "#10B981",
-                },
-            )
-            fig_pie.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                margin=dict(l=10, r=10, t=10, b=10),
-                legend=dict(orientation="h", yanchor="bottom", y=-0.25),
-                height=350,
-            )
-            st.plotly_chart(fig_pie, use_container_width=True)
-        else:
-            st.bar_chart(source_counts.set_index("Noise Source"))
-
-    # 3b — Observed vs CPCB Limits
-    with col_c2:
-        st.markdown("#### Observed vs CPCB Statutory Limits by Zone")
-        zone_summary = filtered_df.groupby("zone_type")["L_eq_db"].mean().reset_index()
-        zone_summary["Statutory Limit"] = zone_summary["zone_type"].map(
-            lambda z: CPCB_LIMITS["night" if is_night_mode else "day"].get(z, 45.0)
-        )
-        zone_summary.columns = ["Zone", "Observed Leq", "CPCB Limit"]
-
-        if HAS_PLOTLY:
-            fig_bar = go.Figure(data=[
-                go.Bar(
-                    name="Observed L_eq dB(A)",
-                    x=zone_summary["Zone"],
-                    y=zone_summary["Observed Leq"],
-                    marker_color="#3B82F6",
-                ),
-                go.Bar(
-                    name="CPCB Statutory Limit",
-                    x=zone_summary["Zone"],
-                    y=zone_summary["CPCB Limit"],
-                    marker_color="#EF4444",
-                ),
-            ])
-            fig_bar.update_layout(
-                barmode="group",
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                yaxis_title="dB(A)",
-                margin=dict(l=10, r=10, t=10, b=10),
-                legend=dict(orientation="h", yanchor="bottom", y=-0.25),
-                height=350,
-            )
-            st.plotly_chart(fig_bar, use_container_width=True)
-        else:
-            st.table(zone_summary)
-
-    # 3c — Day vs Night Distribution (box plot)
-    st.markdown("---")
-    st.markdown("#### Day vs Night Acoustic Distribution")
-    if HAS_PLOTLY and n_records > 0:
-        tw_col = "time_window"
-        if tw_col not in filtered_df.columns:
-            filtered_df[tw_col] = filtered_df["is_night"].map(
-                {True: "Night: 22:00–06:00", False: "Day: 06:00–22:00"}
-            )
-        fig_box = px.box(
-            filtered_df,
-            x=tw_col,
-            y="L_eq_db",
-            color=tw_col,
-            color_discrete_map={
-                "Night: 22:00–06:00": "#6366F1",
-                "Day: 06:00–22:00": "#F59E0B",
-                "Night": "#6366F1",
-                "Day": "#F59E0B",
-            },
-            labels={"L_eq_db": "L_eq  dB(A)", tw_col: "Time Window"},
-        )
-        fig_box.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            height=300,
-            margin=dict(l=10, r=10, t=10, b=10),
-            showlegend=False,
-        )
-        st.plotly_chart(fig_box, use_container_width=True)
+    if n_records == 0:
+        st.info("No acoustic records match the current sidebar filters.")
     else:
-        st.info("Insufficient data for Day vs Night comparison or Plotly unavailable.")
+        col_c1, col_c2 = st.columns(2)
 
-    st.markdown("---")
-    st.markdown("#### Raw Monitored Log Records")
-    st.dataframe(filtered_df, use_container_width=True)
+        # 3a — Source Breakdown Donut
+        with col_c1:
+            st.markdown("#### Dominant Noise Source Breakdown")
+            source_counts = filtered_df["ground_truth_class"].value_counts().reset_index()
+            source_counts.columns = ["Noise Source", "Count"]
+
+            if HAS_PLOTLY:
+                fig_pie = px.pie(
+                    source_counts,
+                    values="Count",
+                    names="Noise Source",
+                    hole=0.45,
+                    color="Noise Source",
+                    color_discrete_map={
+                        "vehicular_honking": "#000000",
+                        "continuous_traffic": "#404040",
+                        "construction_piling": "#737373",
+                        "pa_loudspeaker": "#A3A3A3",
+                        "ambient_baseline": "#D4D4D4",
+                    },
+                )
+                fig_pie.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.25),
+                    height=350,
+                    font=dict(color="#000000"),
+                )
+                st.plotly_chart(fig_pie, width="stretch")
+            else:
+                st.bar_chart(source_counts.set_index("Noise Source"), color="#000000")
+
+        # 3b — Observed vs CPCB Limits
+        with col_c2:
+            st.markdown("#### Observed vs CPCB Statutory Limits by Zone")
+            zone_summary = filtered_df.groupby("zone_type")["L_eq_db"].mean().reset_index()
+            zone_summary["Statutory Limit"] = zone_summary["zone_type"].map(
+                lambda z: CPCB_LIMITS["night" if is_night_mode else "day"].get(z, 45.0)
+            )
+            zone_summary.columns = ["Zone", "Observed Leq", "CPCB Limit"]
+
+            if HAS_PLOTLY:
+                fig_bar = go.Figure(data=[
+                    go.Bar(
+                        name="Observed L_eq dB(A)",
+                        x=zone_summary["Zone"],
+                        y=zone_summary["Observed Leq"],
+                        marker_color="#000000",
+                    ),
+                    go.Bar(
+                        name="CPCB Statutory Limit",
+                        x=zone_summary["Zone"],
+                        y=zone_summary["CPCB Limit"],
+                        marker_color="#A3A3A3",
+                    ),
+                ])
+                fig_bar.update_layout(
+                    barmode="group",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    yaxis_title="dB(A)",
+                    margin=dict(l=10, r=10, t=10, b=10),
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.25),
+                    height=350,
+                    font=dict(color="#000000"),
+                )
+                st.plotly_chart(fig_bar, width="stretch")
+            else:
+                st.table(zone_summary)
+
+        # 3c — Day vs Night Distribution (box plot)
+        st.markdown("---")
+        st.markdown("#### Day vs Night Acoustic Distribution")
+        if HAS_PLOTLY and n_records > 0:
+            tw_col = "time_window"
+            if tw_col not in filtered_df.columns:
+                filtered_df[tw_col] = filtered_df["is_night"].map(
+                    {True: "Night: 22:00–06:00", False: "Day: 06:00–22:00"}
+                )
+            fig_box = px.box(
+                filtered_df,
+                x=tw_col,
+                y="L_eq_db",
+                color=tw_col,
+                color_discrete_map={
+                    "Night: 22:00–06:00": "#000000",
+                    "Day: 06:00–22:00": "#737373",
+                    "Night": "#000000",
+                    "Day": "#737373",
+                },
+                labels={"L_eq_db": "L_eq  dB(A)", tw_col: "Time Window"},
+            )
+            fig_box.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                height=300,
+                margin=dict(l=10, r=10, t=10, b=10),
+                showlegend=False,
+                font=dict(color="#000000"),
+            )
+            st.plotly_chart(fig_box, width="stretch")
+        else:
+            tw_summary = (
+                filtered_df.assign(
+                    Window=filtered_df["is_night"].map({True: "Night (22:00–06:00)", False: "Day (06:00–22:00)"})
+                )
+                .groupby("Window")["L_eq_db"]
+                .agg(["count", "mean", "max"])
+                .round(1)
+            )
+            st.dataframe(tw_summary, width="stretch")
+
+        st.markdown("---")
+        st.markdown("#### Raw Monitored Log Records")
+        st.dataframe(filtered_df, width="stretch")
 
 
 # =============================================================================
@@ -883,22 +1012,22 @@ with tab_bench:
 <div class="kpi-grid">
     <div class="kpi-card">
         <div class="kpi-label">Deep Classifier Accuracy</div>
-        <div class="kpi-value c-teal">{deep.get('accuracy', 0) * 100:.1f} <span class="kpi-unit">%</span></div>
+        <div class="kpi-value c-black">{deep.get('accuracy', 0) * 100:.1f} <span class="kpi-unit">%</span></div>
         <div class="kpi-sub">Stratified 5-Fold CV</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-label">Macro F1-Score</div>
-        <div class="kpi-value c-navy">{deep.get('macro_f1', 0):.3f}</div>
+        <div class="kpi-value c-black">{deep.get('macro_f1', 0):.3f}</div>
         <div class="kpi-sub">Balanced across 5 classes</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-label">Avg Inference Latency</div>
-        <div class="kpi-value c-blue">{latency:.1f} <span class="kpi-unit">ms</span></div>
+        <div class="kpi-value c-dark">{latency:.1f} <span class="kpi-unit">ms</span></div>
         <div class="kpi-sub">Per 5 s audio clip</div>
     </div>
     <div class="kpi-card">
         <div class="kpi-label">Baseline RF F1</div>
-        <div class="kpi-value c-muted">{base.get('macro_f1', 1.0):.3f}</div>
+        <div class="kpi-value c-mid">{base.get('macro_f1', 1.0):.3f}</div>
         <div class="kpi-sub">Random Forest (n=100)</div>
     </div>
 </div>
@@ -914,7 +1043,7 @@ with tab_bench:
                     cm_path,
                     caption="Stratified 5-Fold CV Normalized Confusion Matrix "
                             "(IEEE / FRESHATHON PPT ready)",
-                    use_container_width=True,
+                    width="stretch",
                 )
             else:
                 st.info("Confusion matrix image pending generation.")
@@ -933,14 +1062,14 @@ with tab_bench:
                     }
                     for c, v in per_class.items()
                 ]
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
         with b_right:
             st.markdown("#### CPCB Zone Compliance Summary")
             st.caption("CPCB Noise Pollution (Regulation & Control) Rules, 2000.")
 
             if cpcb_df is not None:
-                st.dataframe(cpcb_df, use_container_width=True, hide_index=True)
+                st.dataframe(cpcb_df, width="stretch", hide_index=True)
 
                 st.markdown("""
 **Key Observations:**

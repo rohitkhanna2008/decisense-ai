@@ -221,7 +221,7 @@
         "zone_type": "silence",
         "L_eq_db": 68.2,
         "L_max_db": 73.5,
-        "dominant_noise_source": "construction_piling",
+        "dominant_noise_source": "ambient_baseline",
         "sleep_disruption_score": 73,
         "risk_category": "Critical (High Sleep Awakenings)",
         "color_code": "#ff3366",

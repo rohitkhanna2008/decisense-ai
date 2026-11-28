@@ -5,18 +5,19 @@ and IEC 61672-1 A-weighted Sound Pressure Level (SPL) metrics (L_eq and L_max).
 """
 
 import os
+import sys
 import json
-import wave
-import io
 import numpy as np
-import scipy.signal as signal
 
-# Optional librosa import
-try:
-    import librosa
-    HAS_LIBROSA = True
-except ImportError:
-    HAS_LIBROSA = False
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+from src.audio_classifier import (
+    apply_a_weighting,
+    design_a_weighting_filter,
+    load_audio as load_audio_waveform,
+)
 
 DEFAULT_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -62,16 +63,20 @@ def calibrate_device(device_model, reference_db, raw_measured_db, filepath=CALIB
     Returns:
         dict: Device calibration entry containing offset_db and timestamp
     """
+    clean_model = str(device_model or "").strip()
+    if not clean_model:
+        raise ValueError("Device model name cannot be empty.")
+
     offset_db = round(float(reference_db - raw_measured_db), 2)
     registry = load_calibration_registry(filepath)
     
     entry = {
-        "device_model": device_model.strip(),
+        "device_model": clean_model,
         "reference_db": round(float(reference_db), 2),
         "raw_measured_db": round(float(raw_measured_db), 2),
         "offset_db": offset_db
     }
-    registry[device_model.strip()] = entry
+    registry[clean_model] = entry
     save_calibration_registry(registry, filepath)
     return entry
 
@@ -93,113 +98,10 @@ def list_calibrated_devices(filepath=CALIBRATION_FILE):
 
 
 # -----------------------------------------------------------------------------
-# 2. IEC 61672-1 Digital A-Weighting Filter
+# 2. IEC 61672-1 Digital A-Weighting Filter & Calibrated SPL Computation
 # -----------------------------------------------------------------------------
-def design_a_weighting_filter(sample_rate=16000):
-    """
-    Designs an IEC 61672-1 compliant digital IIR filter approximating
-    standard A-weighting frequency response for human ear perception.
-    """
-    f1 = 20.598997
-    f2 = 107.65265
-    f3 = 737.86223
-    f4 = 12194.217
-
-    w1 = 2 * np.pi * f1
-    w2 = 2 * np.pi * f2
-    w3 = 2 * np.pi * f3
-    w4 = 2 * np.pi * f4
-
-    # Analog poles and zeros
-    b_analog = [(2 * np.pi * f4)**2 * (10**(1.9997 / 20)), 0, 0, 0, 0]
-    p = [w1, w1, w2, w3, w4, w4]
-    a_analog = np.poly([-x for x in p])
-
-    # Bilinear transformation to digital IIR coefficients
-    b_dig, a_dig = signal.bilinear(b_analog, a_analog, fs=sample_rate)
-    return b_dig, a_dig
-
-
-def apply_a_weighting(waveform, sample_rate=16000):
-    """Applies standard A-weighting digital IIR filter to audio waveform."""
-    try:
-        b, a = design_a_weighting_filter(sample_rate)
-        return signal.lfilter(b, a, waveform)
-    except Exception:
-        return waveform
-
-
-# -----------------------------------------------------------------------------
-# 3. Calibrated SPL Metrics Computation (L_eq and Fast L_max)
-# -----------------------------------------------------------------------------
-def load_audio_waveform(audio_input, target_sr=16000):
-    """
-    Helper to load audio into normalized float32 [-1.0, 1.0] array.
-    Accepts:
-      - File path (str)
-      - Bytes / BytesIO
-      - numpy array (1D)
-    """
-    if isinstance(audio_input, np.ndarray):
-        waveform = audio_input.astype(np.float32)
-        if waveform.ndim > 1:
-            waveform = waveform.mean(axis=1)
-        return waveform, target_sr
-
-    if isinstance(audio_input, (bytes, io.BytesIO)):
-        bio = io.BytesIO(audio_input) if isinstance(audio_input, bytes) else audio_input
-        with wave.open(bio, 'rb') as wf:
-            n_ch = wf.getnchannels()
-            width = wf.getsampwidth()
-            src_sr = wf.getframerate()
-            raw = wf.readframes(wf.getnframes())
-
-        if width == 2:
-            arr = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
-        elif width == 4:
-            arr = np.frombuffer(raw, dtype=np.int32).astype(np.float32) / 2147483648.0
-        else:
-            arr = np.frombuffer(raw, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
-
-        if n_ch > 1:
-            arr = arr.reshape(-1, n_ch).mean(axis=1)
-
-        if src_sr != target_sr and len(arr) > 0:
-            target_len = int(len(arr) * float(target_sr) / src_sr)
-            arr = signal.resample(arr, target_len)
-        return arr, target_sr
-
-    # Audio input is a string file path
-    if HAS_LIBROSA:
-        try:
-            y, sr = librosa.load(audio_input, sr=target_sr, mono=True)
-            return y, sr
-        except Exception:
-            pass
-
-    # Standard library fallback for WAV files
-    with wave.open(audio_input, 'rb') as wf:
-        n_ch = wf.getnchannels()
-        width = wf.getsampwidth()
-        src_sr = wf.getframerate()
-        raw = wf.readframes(wf.getnframes())
-
-    if width == 2:
-        arr = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
-    elif width == 4:
-        arr = np.frombuffer(raw, dtype=np.int32).astype(np.float32) / 2147483648.0
-    else:
-        arr = np.frombuffer(raw, dtype=np.uint8).astype(np.float32) / 128.0 - 1.0
-
-    if n_ch > 1:
-        arr = arr.reshape(-1, n_ch).mean(axis=1)
-
-    if src_sr != target_sr and len(arr) > 0:
-        target_len = int(len(arr) * float(target_sr) / src_sr)
-        arr = signal.resample(arr, target_len)
-
-    return arr, target_sr
-
+# Re-exported from src.audio_classifier (design_a_weighting_filter,
+# apply_a_weighting, load_audio_waveform) to keep a single DSP implementation.
 
 def compute_calibrated_spl(audio_input, sample_rate=16000, offset_db=0.0):
     """

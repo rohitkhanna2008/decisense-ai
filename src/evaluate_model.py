@@ -136,12 +136,21 @@ def evaluate_models(csv_path=CSV_LOG_PATH, outputs_dir=OUTPUTS_DIR):
 
     for idx, row in df.iterrows():
         try:
-            feats, leq, lmax, crest = extract_clip_features(row["wav_path"])
+            label = str(row.get("ground_truth_class", "")).strip()
+            if label not in CLASSES:
+                continue
+            wav_val = row.get("wav_path")
+            if pd.isna(wav_val) or not str(wav_val).strip():
+                continue
+            feats, leq, lmax, crest = extract_clip_features(str(wav_val))
             X_list.append(feats)
-            y_list.append(row["ground_truth_class"])
+            y_list.append(label)
             valid_indices.append(idx)
         except Exception as e:
             print(f"  [!] Skipping row {idx} ({row.get('clip_id', 'unknown')}): {e}")
+
+    if not X_list:
+        raise RuntimeError("No valid audio clips found for evaluation.")
 
     feat_extract_duration = time.time() - start_feat_time
     avg_inference_ms = round((feat_extract_duration / max(len(X_list), 1)) * 1000.0, 2)
@@ -154,8 +163,14 @@ def evaluate_models(csv_path=CSV_LOG_PATH, outputs_dir=OUTPUTS_DIR):
     class_to_idx = {c: i for i, c in enumerate(CLASSES)}
     y_idx = np.array([class_to_idx[c] for c in y])
 
-    # 5-Fold Stratified Cross-Validation
-    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    # Determine safe number of stratified folds from smallest class count
+    _, class_counts = np.unique(y_idx, return_counts=True)
+    n_splits = min(5, int(np.min(class_counts)))
+    if n_splits < 2:
+        raise ValueError("Need at least 2 samples per class for stratified cross-validation.")
+
+    # Stratified Cross-Validation
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
 
     # Models under comparison
     baseline_rf = RandomForestClassifier(n_estimators=100, max_depth=12, random_state=42)
@@ -250,31 +265,32 @@ def evaluate_models(csv_path=CSV_LOG_PATH, outputs_dir=OUTPUTS_DIR):
     # -------------------------------------------------------------------------
     # 3. High-Resolution Publication-Grade Confusion Matrix Heatmap (300 DPI)
     # -------------------------------------------------------------------------
-    cm = confusion_matrix(y_idx, deep_preds)
-    cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    cm = confusion_matrix(y_idx, deep_preds, labels=list(range(len(CLASSES))))
+    row_sums = cm.sum(axis=1)[:, np.newaxis].astype(float)
+    cm_normalized = np.divide(cm.astype(float), row_sums, out=np.zeros_like(cm, dtype=float), where=row_sums != 0)
 
-    # Custom Clean Navy/Teal Colormap (#0F172A / #0D9488) on pure-white background
-    teal_navy_cmap = LinearSegmentedColormap.from_list(
-        "DeciSenseTealNavy",
-        ["#FFFFFF", "#CCFBF1", "#2DD4BF", "#0D9488", "#0F172A"],
+    # Custom Clean Black & White Monochrome Colormap on pure-white background
+    mono_cmap = LinearSegmentedColormap.from_list(
+        "DeciSenseMonochrome",
+        ["#FFFFFF", "#E5E5E5", "#A3A3A3", "#525252", "#000000"],
         N=256
     )
 
     fig, ax = plt.subplots(figsize=(7.5, 6.5), dpi=300, facecolor="#FFFFFF")
-    im = ax.imshow(cm_normalized, interpolation='nearest', cmap=teal_navy_cmap, vmin=0.0, vmax=1.0)
+    im = ax.imshow(cm_normalized, interpolation='nearest', cmap=mono_cmap, vmin=0.0, vmax=1.0)
 
     # Format ticks with clean display names
     display_labels = [c.replace('_', ' ').title() for c in CLASSES]
     ax.set_xticks(np.arange(len(CLASSES)))
     ax.set_yticks(np.arange(len(CLASSES)))
-    ax.set_xticklabels(display_labels, rotation=28, ha="right", fontsize=9, color="#0F172A", fontweight="600")
-    ax.set_yticklabels(display_labels, fontsize=9, color="#0F172A", fontweight="600")
+    ax.set_xticklabels(display_labels, rotation=28, ha="right", fontsize=9, color="#000000", fontweight="600")
+    ax.set_yticklabels(display_labels, fontsize=9, color="#000000", fontweight="600")
 
-    ax.set_xlabel("Predicted Acoustic Class", fontsize=10, color="#0F172A", fontweight="bold", labelpad=10)
-    ax.set_ylabel("Ground Truth Class", fontsize=10, color="#0F172A", fontweight="bold", labelpad=10)
+    ax.set_xlabel("Predicted Acoustic Class", fontsize=10, color="#000000", fontweight="bold", labelpad=10)
+    ax.set_ylabel("Ground Truth Class", fontsize=10, color="#000000", fontweight="bold", labelpad=10)
     ax.set_title(
         f"DeciSense AI — Normalized Confusion Matrix\nStratified 5-Fold CV (Overall Accuracy: {deep_acc*100:.1f}%)",
-        fontsize=11, color="#0F172A", fontweight="bold", pad=14
+        fontsize=11, color="#000000", fontweight="bold", pad=14
     )
 
     # Annotate cells with percentage and sample count
@@ -283,7 +299,7 @@ def evaluate_models(csv_path=CSV_LOG_PATH, outputs_dir=OUTPUTS_DIR):
         for j in range(len(CLASSES)):
             pct = cm_normalized[i, j] * 100.0
             count = cm[i, j]
-            text_color = "#FFFFFF" if cm_normalized[i, j] > thresh else "#0F172A"
+            text_color = "#FFFFFF" if cm_normalized[i, j] > thresh else "#000000"
             ax.text(
                 j, i, f"{pct:.1f}%\n(n={count})",
                 ha="center", va="center", color=text_color,
@@ -291,12 +307,12 @@ def evaluate_models(csv_path=CSV_LOG_PATH, outputs_dir=OUTPUTS_DIR):
             )
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.ax.tick_params(labelsize=8, colors="#0F172A")
-    cbar.set_label("Classification Probability Ratio", fontsize=8.5, color="#0F172A", fontweight="600")
+    cbar.ax.tick_params(labelsize=8, colors="#000000")
+    cbar.set_label("Classification Probability Ratio", fontsize=8.5, color="#000000", fontweight="600")
 
     # Clean borders
     for spine in ax.spines.values():
-        spine.set_color("#E2E8F0")
+        spine.set_color("#000000")
         spine.set_linewidth(1.0)
 
     plt.tight_layout()
@@ -312,14 +328,15 @@ def evaluate_models(csv_path=CSV_LOG_PATH, outputs_dir=OUTPUTS_DIR):
     compliance_rows = []
     
     # Infer time window if not already present
-    if "time_window" not in df.columns and "timestamp" in df.columns:
-        hours = pd.to_datetime(df["timestamp"]).dt.hour
-        df["time_window"] = np.where((hours >= 6) & (hours < 22), "Day", "Night")
-    else:
-        # Standardize strings like 'Day: 06:00-22:00' into 'Day'
+    if "time_window" in df.columns:
         df["time_window_short"] = df["time_window"].apply(lambda s: "Night" if "Night" in str(s) else "Day")
+    elif "timestamp" in df.columns:
+        hours = pd.to_datetime(df["timestamp"], errors="coerce").dt.hour.fillna(12)
+        df["time_window_short"] = np.where((hours >= 6) & (hours < 22), "Day", "Night")
+    else:
+        df["time_window_short"] = "Day"
 
-    window_col = "time_window_short" if "time_window_short" in df.columns else "time_window"
+    window_col = "time_window_short"
 
     for zone in ["silence", "residential", "commercial"]:
         for win in ["Day", "Night"]:
