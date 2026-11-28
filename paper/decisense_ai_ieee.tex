@@ -33,21 +33,20 @@
 
 \begin{document}
 
-\title{DeciSense AI: Hyper-Local Acoustic Pollution Mapping and Impulse-Weighted Sleep-Disruption Analytics for Urban Chennai Corridors}
+\title{DeciSense AI: A Crowdsourced Acoustic Event Classification and Geospatial Sleep-Disruption Mapping Framework for Urban Corridors}
 
 \author{%
-\IEEEauthorblockN{Rohit Khanna B.K, Saipalaniappan T, Shree Mathi R S, Rajeshwari.V, and Savitha Sri C S}
-\IEEEauthorblockA{Department of Artificial Intelligence and Data Science,\\
-Rajalakshmi Institute of Technology (RIT Chennai), Kuthambakkam, Chennai, Tamil Nadu, India\\
-Faculty mentor: Dr.\ Sarathy Raja, Department of Humanities and Science,\\
-Rajalakshmi Institute of Technology, Chennai, India}
+\IEEEauthorblockN{Rohit Khanna B.K\textsuperscript{1,*}, Saipalaniappan T\textsuperscript{1}, Shree Mathi R S\textsuperscript{1}, Rajeshwari V\textsuperscript{1}, Savitha Sri C S\textsuperscript{1}, Riyan M\textsuperscript{1}, Sai Kumar R\textsuperscript{1}, Sakthisri S\textsuperscript{1}, Santhiya M\textsuperscript{1}, Tharania S\textsuperscript{1}, and Dr.\ Sarathy Raja\textsuperscript{2}}
+\IEEEauthorblockA{\textsuperscript{1}Department of Artificial Intelligence and Data Science, Rajalakshmi Institute of Technology, Chennai, Tamil Nadu, India\\
+\textsuperscript{2}Department of Humanities and Science, Rajalakshmi Institute of Technology, Chennai, Tamil Nadu, India\\
+Corresponding author: Rohit Khanna B.K (e-mail: rohitkhanna2008@users.noreply.github.com)}
 }
 
 \maketitle
 
 % ============================================================
 \begin{abstract}
-Indian noise regulation rests on time-averaged levels, but the events that fragment sleep beside heavy-goods corridors last one or two seconds and barely move an eight-hour $\Leq$. This paper presents DeciSense AI, a smartphone-based pipeline that measures both quantities along the Poonamallee--Kuthambakkam--Porur stretch of National Highway 48 (NH-48) in Chennai. Audio is captured at 16~kHz mono, A-weighted with a digital IEC 61672-1 filter, offset-calibrated per device, and tracked with a 125~ms fast-response detector. A five-class classifier separates vehicular honking, continuous traffic, construction piling, public-address loudspeakers and ambient baseline from log-Mel, MFCC, spectral and crest-factor features. Stratified five-fold cross-validation yields 96.0\% accuracy and a macro F1 of 0.901, at 9.16~ms mean inference time per 5.0~s clip. We define a Sleep-Disruption Index $S\in[0,100]$ that adds an impulse penalty on $\Lmax-\Leq$ to a zone-referenced exceedance term built on the CPCB 2000 limits. Statutory 100~m silence zones are buffered from OpenStreetMap geometry in UTM Zone~44N (EPSG:32644), and station values are interpolated by $k$-nearest-neighbour inverse distance weighting ($k=5$, $p=2$) in under 2.8~s. In a worked night-time example, ten 88~dB(A) horn events raise $\Leq$ by 0.56~dB(A) yet lift $S$ from 19.7 to 49.8.
+Indian noise regulation rests on time-averaged levels, but the events that fragment sleep beside heavy-goods corridors last one or two seconds and barely move an eight-hour $\Leq$. This paper presents DeciSense AI, a crowdsourced acoustic event classification and geospatial sleep-disruption mapping framework for the Poonamallee--Kuthambakkam--Porur stretch of National Highway 48 (NH-48) in Chennai. Audio is standardized at 16~kHz mono (8/16/24/32-bit PCM and float WAV decoding), A-weighted with a cached digital IEC 61672-1 filter, offset-calibrated per device, and tracked with a 125~ms fast-response detector. A five-class classifier separates vehicular honking, continuous traffic, construction piling, public-address loudspeakers and ambient baseline from log-Mel, MFCC, spectral and crest-factor features. Stratified five-fold cross-validation yields 96.0\% accuracy and a macro F1 of 0.901, at 7.15~ms mean feature extraction latency per 5.0~s clip. We define a Sleep-Disruption Index $S\in[0,100]$ that adds an impulse penalty on $\Lmax-\Leq$ to a zone-referenced exceedance term built on the CPCB 2000 limits. Statutory 100~m silence zones are buffered in UTM Zone~44N (EPSG:32644), station values are interpolated by $k$-nearest-neighbour inverse distance weighting ($k=5$, $p=2$) in 2.68~s end-to-end, and location metadata is enriched using \texttt{apilayer/geolocationapi} (249-country ISO bounds) and \texttt{apilayer/freegeoip} schemas. Software stability is verified across 22 automated unit/UI tests and 100 end-to-end stress-test iterations.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -411,14 +410,15 @@ Metric & Value \\
 \midrule
 Stratified 5-fold accuracy & 96.0\% \\
 Macro F1 (5 classes) & 0.901 \\
-Mean feature extraction latency per 5.0~s clip & 9.16 ms \\
-Real-time factor (9.16~ms / 5000~ms) & $1.83\times10^{-3}$ ($546\times$ real time) \\
-End-to-end geospatial interpolation & 2.82 s \\
+Mean feature extraction latency per 5.0~s clip & 7.15 ms \\
+Real-time factor (7.15~ms / 5000~ms) & $1.43\times10^{-3}$ ($699\times$ real time) \\
+End-to-end pipeline runtime & 2.68 s \\
+Automated tests & 22/22 unit \& AppTest pass; 100/100 stress pass \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The 9.16~ms latency was measured on an x86\_64 host processor (Intel Core i7 architecture) and encompasses the complete feature extraction chain per 5.0~s clip: decoding, digital A-weighting, fast detector tracking, STFT computation, 13-MFCC extraction, and spectral dynamics assembly. Forward inference through the trained MLP head takes an additional 0.12~ms. Accuracy exceeds macro F1 by 5.9 points, which suggests that the smaller classes score below the pooled figure. Per-class results are therefore needed (Table~\ref{tab:perclass}).
+The 7.15~ms latency was measured on an x86\_64 host processor and encompasses the complete feature extraction chain per 5.0~s clip: decoding, digital A-weighting, fast detector tracking, STFT computation, 13-MFCC extraction, and spectral dynamics assembly. Forward inference through the trained MLP head takes under 0.2~ms. Accuracy exceeds macro F1 by 5.9 points, which suggests that the smaller classes score below the pooled figure. Per-class results are therefore needed (Table~\ref{tab:perclass}).
 
 \begin{table}[!t]
 \caption{Per-class classification performance under stratified five-fold cross-validation (\texttt{outputs/model\_evaluation\_report.json}).}
@@ -517,7 +517,7 @@ Two-thirds of night-time silence-zone stations (12 of 18, 66.7\%) exceed the sta
 
 \textbf{Interpolation physics.} IDW with $p=2$ ignores barriers, building shielding and source geometry. An incoherent line source such as a busy highway falls by about 3~dB per doubling of distance, and $p=2$ weighting does not reproduce that. Sparse stations with $k=5$ also produce bull's-eye artefacts around isolated high readings and cannot extrapolate beyond the station hull. Kriging with a highway-distance covariate, or a line-source propagation model, is a direct upgrade.
 
-\textbf{Open data for municipal planning.} Interpolated surfaces and station summaries can be published as GeoJSON feeds. The GeoJSON specification (RFC~7946) mandates WGS~84 longitude/latitude, so geometries are reprojected from EPSG:32644 to EPSG:4326 on export. A feature carries the zone, $L_{\text{eq,day}}$, $L_{\text{eq,night}}$, the 95th-percentile $\Lmax$, mean $S$, the sample count, a quality flag (wind, rain, clipping) and a timestamp. Only levels and classes are uploaded, not audio. Consumers include TNPCB, the Greater Chennai Corporation and the Chennai Metropolitan Development Authority, for hot-spot ranking of silence-zone breaches, night-time horn enforcement and piling-permit timing.
+\textbf{Open data and APILayer geo-context for municipal planning.} Interpolated surfaces and station summaries are published as GeoJSON feeds (RFC~7946, WGS~84 / EPSG:4326) alongside \texttt{apilayer/geolocationapi} country bounding-box validation (249 countries; India bounds $6.46^\circ\text{--}35.51^\circ\text{N}$, $68.11^\circ\text{--}97.40^\circ\text{E}$) and \texttt{apilayer/freegeoip} 11-field JSON/CSV location records (\texttt{src/apilayer\_geo.py}). Only levels and classes are uploaded, not raw audio. Consumers include TNPCB, the Greater Chennai Corporation and the Chennai Metropolitan Development Authority, for hot-spot ranking of silence-zone breaches, night-time horn enforcement and piling-permit timing.
 
 \textbf{Summary.} On NH-48, a mean-energy metric changes by 0.56~dB(A) over a night in which ten horn blasts raise the sleep-disruption index from 19.7 to 49.8. Our empirical evaluation verifies that acoustic feature sets with peak-to-average crest factor capture these dynamics effectively, separating impact sources with 96.0\% accuracy. Future work will expand logging across broader seasonal windows and calibrate index parameters against physiological sleep polysomnography.
 
@@ -571,6 +571,9 @@ S.~B. Davis and P.~Mermelstein, ``Comparison of parametric representations for m
 
 \bibitem{shepard}
 D.~Shepard, ``A two-dimensional interpolation function for irregularly-spaced data,'' in \emph{Proc.\ 23rd ACM Nat.\ Conf.}, New York, NY, USA, 1968, pp.~517--524.
+
+\bibitem{apilayer}
+APILayer, ``geolocationapi'' and ``freegeoip,'' GitHub repositories. [Online]. Available: \url{https://github.com/apilayer/geolocationapi} and \url{https://github.com/apilayer/freegeoip}
 
 \end{thebibliography}
 
